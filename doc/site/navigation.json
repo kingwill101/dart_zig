@@ -1,0 +1,76 @@
+{
+  "sections": [
+    {
+      "title": "Start here",
+      "pages": [
+        {
+          "source": "doc/index.md",
+          "title": "Introduction"
+        },
+        {
+          "source": "README.md",
+          "title": "Quick start"
+        },
+        {
+          "source": "doc/usage.md",
+          "title": "Using the Dart API"
+        },
+        {
+          "source": "example/README.md",
+          "title": "Feature examples"
+        }
+      ]
+    },
+    {
+      "title": "Build with it",
+      "pages": [
+        {
+          "source": "doc/platforms.md",
+          "title": "Native & Web"
+        },
+        {
+          "source": "doc/lifecycle.md",
+          "title": "Signals & cleanup"
+        },
+        {
+          "source": "doc/runtime.md",
+          "title": "Runtime & ownership"
+        },
+        {
+          "source": "doc/generation.md",
+          "title": "Schema & generation"
+        },
+        {
+          "source": "benchmark/README.md",
+          "title": "Performance"
+        }
+      ]
+    },
+    {
+      "title": "Project notebook",
+      "pages": [
+        {
+          "source": "doc/gap-implementation.md",
+          "title": "Feature coverage"
+        },
+        {
+          "source": "doc/validation.md",
+          "title": "Validation record"
+        },
+        {
+          "source": "doc/PLAN.md",
+          "title": "Implementation status"
+        },
+        {
+          "source": "doc/rinf-catalog.md",
+          "title": "Rinf research",
+          "label": "Proposal"
+        },
+        {
+          "source": "doc/documentation.md",
+          "title": "Writing documentation"
+        }
+      ]
+    }
+  ]
+}
