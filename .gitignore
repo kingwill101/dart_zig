@@ -1,0 +1,17 @@
+.dart_tool/
+pubspec.lock
+build/
+zig/.zig-cache/
+zig/zig-out/
+zig/.zigchain_probe_*.zig
+zig/.zigchain_probe_*.zig.zon
+.zigchain_cimport.zig
+.zigchain_cimport_source.c
+.deslop/
+
+doc/api/
+
+__pycache__/
+*.pyc
+
+*.log
