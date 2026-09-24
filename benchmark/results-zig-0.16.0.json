@@ -1,0 +1,352 @@
+{
+  "os": "linux",
+  "dart": "3.13.4 (stable) (Tue Sep 15 01:01:15 2026 -0700) on \"linux_x64\"",
+  "zig": "0.16.0",
+  "mode": "dart run JIT, native ReleaseSafe build hook",
+  "results": [
+    {
+      "case": "sync_sum",
+      "batch": 1,
+      "operations": 100000,
+      "elapsed_us": 54824,
+      "round": 1
+    },
+    {
+      "case": "async_sum_latency",
+      "batch": 1,
+      "p50_us": 166,
+      "p95_us": 1218,
+      "p99_us": 5916,
+      "round": 1
+    },
+    {
+      "case": "async_sum_concurrency_64",
+      "batch": 1,
+      "operations": 4096,
+      "elapsed_us": 593579,
+      "operations_per_second": 6900.513663724626,
+      "round": 1
+    },
+    {
+      "case": "echo_copied_result",
+      "batch": 1,
+      "payload_bytes": 64,
+      "operations": 100,
+      "elapsed_us": 41500,
+      "payload_mib_per_second": 0.1470726656626506,
+      "round": 1
+    },
+    {
+      "case": "echo_owned_result",
+      "batch": 1,
+      "payload_bytes": 64,
+      "operations": 100,
+      "elapsed_us": 13746,
+      "payload_mib_per_second": 0.44402121526262184,
+      "round": 1
+    },
+    {
+      "case": "echo_copied_result",
+      "batch": 1,
+      "payload_bytes": 65536,
+      "operations": 100,
+      "elapsed_us": 85037,
+      "payload_mib_per_second": 73.49741877065277,
+      "round": 1
+    },
+    {
+      "case": "echo_owned_result",
+      "batch": 1,
+      "payload_bytes": 65536,
+      "operations": 100,
+      "elapsed_us": 74830,
+      "payload_mib_per_second": 83.52265134304423,
+      "round": 1
+    },
+    {
+      "case": "echo_copied_result",
+      "batch": 1,
+      "payload_bytes": 1048576,
+      "operations": 100,
+      "elapsed_us": 723250,
+      "payload_mib_per_second": 138.26477704804702,
+      "round": 1
+    },
+    {
+      "case": "echo_owned_result",
+      "batch": 1,
+      "payload_bytes": 1048576,
+      "operations": 100,
+      "elapsed_us": 567805,
+      "payload_mib_per_second": 176.11680066219918,
+      "round": 1
+    },
+    {
+      "case": "session_counters",
+      "batch": 1,
+      "submitted": 5672,
+      "delivered": 5672,
+      "wakes": 1083,
+      "native_copied_bytes": 487734688,
+      "round": 1
+    },
+    {
+      "case": "sync_sum",
+      "batch": 32,
+      "operations": 100000,
+      "elapsed_us": 51999,
+      "round": 2
+    },
+    {
+      "case": "async_sum_latency",
+      "batch": 32,
+      "p50_us": 36,
+      "p95_us": 243,
+      "p99_us": 2283,
+      "round": 2
+    },
+    {
+      "case": "async_sum_concurrency_64",
+      "batch": 32,
+      "operations": 4096,
+      "elapsed_us": 120785,
+      "operations_per_second": 33911.49563273585,
+      "round": 2
+    },
+    {
+      "case": "echo_copied_result",
+      "batch": 32,
+      "payload_bytes": 64,
+      "operations": 100,
+      "elapsed_us": 64590,
+      "payload_mib_per_second": 0.09449629393094906,
+      "round": 2
+    },
+    {
+      "case": "echo_owned_result",
+      "batch": 32,
+      "payload_bytes": 64,
+      "operations": 100,
+      "elapsed_us": 60434,
+      "payload_mib_per_second": 0.10099473185623986,
+      "round": 2
+    },
+    {
+      "case": "echo_copied_result",
+      "batch": 32,
+      "payload_bytes": 65536,
+      "operations": 100,
+      "elapsed_us": 40072,
+      "payload_mib_per_second": 155.9692553403873,
+      "round": 2
+    },
+    {
+      "case": "echo_owned_result",
+      "batch": 32,
+      "payload_bytes": 65536,
+      "operations": 100,
+      "elapsed_us": 42847,
+      "payload_mib_per_second": 145.8678553924429,
+      "round": 2
+    },
+    {
+      "case": "echo_copied_result",
+      "batch": 32,
+      "payload_bytes": 1048576,
+      "operations": 100,
+      "elapsed_us": 832506,
+      "payload_mib_per_second": 120.11925439576412,
+      "round": 2
+    },
+    {
+      "case": "echo_owned_result",
+      "batch": 32,
+      "payload_bytes": 1048576,
+      "operations": 100,
+      "elapsed_us": 607297,
+      "payload_mib_per_second": 164.66407704961495,
+      "round": 2
+    },
+    {
+      "case": "session_counters",
+      "batch": 32,
+      "submitted": 5672,
+      "delivered": 5672,
+      "wakes": 1539,
+      "native_copied_bytes": 487734688,
+      "round": 2
+    },
+    {
+      "case": "sync_sum",
+      "batch": 32,
+      "operations": 100000,
+      "elapsed_us": 15650,
+      "round": 3
+    },
+    {
+      "case": "async_sum_latency",
+      "batch": 32,
+      "p50_us": 47,
+      "p95_us": 3036,
+      "p99_us": 5273,
+      "round": 3
+    },
+    {
+      "case": "async_sum_concurrency_64",
+      "batch": 32,
+      "operations": 4096,
+      "elapsed_us": 62803,
+      "operations_per_second": 65219.8143400793,
+      "round": 3
+    },
+    {
+      "case": "echo_copied_result",
+      "batch": 32,
+      "payload_bytes": 64,
+      "operations": 100,
+      "elapsed_us": 4577,
+      "payload_mib_per_second": 1.3335188169106402,
+      "round": 3
+    },
+    {
+      "case": "echo_owned_result",
+      "batch": 32,
+      "payload_bytes": 64,
+      "operations": 100,
+      "elapsed_us": 33808,
+      "payload_mib_per_second": 0.18053465525911028,
+      "round": 3
+    },
+    {
+      "case": "echo_copied_result",
+      "batch": 32,
+      "payload_bytes": 65536,
+      "operations": 100,
+      "elapsed_us": 14665,
+      "payload_mib_per_second": 426.18479372655986,
+      "round": 3
+    },
+    {
+      "case": "echo_owned_result",
+      "batch": 32,
+      "payload_bytes": 65536,
+      "operations": 100,
+      "elapsed_us": 221038,
+      "payload_mib_per_second": 28.27568110460645,
+      "round": 3
+    },
+    {
+      "case": "echo_copied_result",
+      "batch": 32,
+      "payload_bytes": 1048576,
+      "operations": 100,
+      "elapsed_us": 747161,
+      "payload_mib_per_second": 133.83996220359467,
+      "round": 3
+    },
+    {
+      "case": "echo_owned_result",
+      "batch": 32,
+      "payload_bytes": 1048576,
+      "operations": 100,
+      "elapsed_us": 477302,
+      "payload_mib_per_second": 209.5109595182924,
+      "round": 3
+    },
+    {
+      "case": "session_counters",
+      "batch": 32,
+      "submitted": 5672,
+      "delivered": 5672,
+      "wakes": 1533,
+      "native_copied_bytes": 487734688,
+      "round": 3
+    },
+    {
+      "case": "sync_sum",
+      "batch": 1,
+      "operations": 100000,
+      "elapsed_us": 13994,
+      "round": 4
+    },
+    {
+      "case": "async_sum_latency",
+      "batch": 1,
+      "p50_us": 31,
+      "p95_us": 114,
+      "p99_us": 1350,
+      "round": 4
+    },
+    {
+      "case": "async_sum_concurrency_64",
+      "batch": 1,
+      "operations": 4096,
+      "elapsed_us": 112980,
+      "operations_per_second": 36254.20428394406,
+      "round": 4
+    },
+    {
+      "case": "echo_copied_result",
+      "batch": 1,
+      "payload_bytes": 64,
+      "operations": 100,
+      "elapsed_us": 10678,
+      "payload_mib_per_second": 0.5715972677467691,
+      "round": 4
+    },
+    {
+      "case": "echo_owned_result",
+      "batch": 1,
+      "payload_bytes": 64,
+      "operations": 100,
+      "elapsed_us": 40656,
+      "payload_mib_per_second": 0.15012582706119637,
+      "round": 4
+    },
+    {
+      "case": "echo_copied_result",
+      "batch": 1,
+      "payload_bytes": 65536,
+      "operations": 100,
+      "elapsed_us": 61618,
+      "payload_mib_per_second": 101.43139991560908,
+      "round": 4
+    },
+    {
+      "case": "echo_owned_result",
+      "batch": 1,
+      "payload_bytes": 65536,
+      "operations": 100,
+      "elapsed_us": 105235,
+      "payload_mib_per_second": 59.39088706228916,
+      "round": 4
+    },
+    {
+      "case": "echo_copied_result",
+      "batch": 1,
+      "payload_bytes": 1048576,
+      "operations": 100,
+      "elapsed_us": 844102,
+      "payload_mib_per_second": 118.46909496719591,
+      "round": 4
+    },
+    {
+      "case": "echo_owned_result",
+      "batch": 1,
+      "payload_bytes": 1048576,
+      "operations": 100,
+      "elapsed_us": 549653,
+      "payload_mib_per_second": 181.93296497972358,
+      "round": 4
+    },
+    {
+      "case": "session_counters",
+      "batch": 1,
+      "submitted": 5672,
+      "delivered": 5672,
+      "wakes": 1456,
+      "native_copied_bytes": 487734688,
+      "round": 4
+    }
+  ]
+}
