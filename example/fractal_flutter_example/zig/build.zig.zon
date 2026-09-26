@@ -1,0 +1,10 @@
+.{
+    .name = .fractal_flutter_example,
+    .fingerprint = 0x86813fc3d7df919e,
+    .version = "0.1.0",
+    .minimum_zig_version = "0.15.2",
+    .dependencies = .{
+        .dart_zig = .{ .path = "../../../zig" },
+    },
+    .paths = .{ "build.zig", "build.zig.zon", "src" },
+}
