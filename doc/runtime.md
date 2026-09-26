@@ -16,10 +16,10 @@ Dart futures / streams ← batch descriptors ← bounded output queue
          └── coalesced dart_api_dl wake notifications
 ```
 
-`zig/src/root.zig` exports reusable runtime primitives. `application.zig` and
-`generated/models.zig` are separate application modules supplied by `build.zig`.
-The application provides `Application.create`, `Application.destroy`, and
-`dispatch`. `exports.zig` exposes the FFI entry points around those modules.
+`zig/src/root.zig` exposes reusable runtime primitives. The shared
+`zig/src/exports.zig` defines the C ABI used by each native asset. The
+application supplies `Application.create`, `Application.destroy`, and
+`dispatch` through its own module in `build.zig`.
 
 A dispatch handler receives a `Context` and can:
 
@@ -55,7 +55,8 @@ so the runtime can coalesce wakes without relying on periodic Dart polling.
 
 - Native queue slots and Dart batch descriptors are allocated once per session.
 - Dart reuses an input scratch allocation; native payload buffers use a bounded
-  reuse pool. Native worker waits use OS condition variables rather than spinning.
+  reuse pool. Native worker waits use Zig's blocking condition primitives
+  rather than spinning.
 - Regular results are copied into independent Dart bytes before user callbacks.
 - `session.callBuffer(...).result` returns a `NativeBuffer` without copying the
   result payload into Dart memory. Its `view` is borrowed; use `copy()` for an
@@ -69,8 +70,15 @@ so the runtime can coalesce wakes without relying on periodic Dart polling.
   cached storage, and Dart model allocations contribute additional memory.
 - Each native stream has one outstanding production credit. Continuation-based
   producers release their worker while paused. `Context.deferStream` owns producer
-  state and resumes it once per credit. Legacy handlers that loop in `item` can
-  still block a worker; the bundled stream uses continuations.
+  state and resumes it once per credit. `Context.item` and `Context.end` return
+  `NoCredit` if called without a grant; they do not park a worker.
+- Results waiting for Dart are held in a pending queue with a separate
+  `maxBytes` byte budget. Together, the regular and pending native output
+  queues hold at most twice `maxBytes` of queued payloads. A completed task
+  retains its admission slot until Dart polls its terminal frame. A handler
+  that emits more nonterminal frames than the queue allows receives `Full`.
+  If a terminal frame cannot fit in the reserve, the runtime stops rather than
+  allowing queued output to grow without bound.
 
 ## Cancellation and shutdown
 
@@ -97,7 +105,7 @@ and [Web/platform behavior](platforms.md). The core is Dart-only; hosts own life
 
 | Code | Meaning |
 | --- | --- |
-| `protocol`, `schema` | Native asset and Dart facade are incompatible. |
+| `protocol` | Native asset and Dart runtime use incompatible protocol versions. |
 | `allocation` | Native session allocation failed. |
 | `busy` | Dart pending-call count or payload budget is exhausted. |
 | `too_large` | A payload exceeds the session limit. |

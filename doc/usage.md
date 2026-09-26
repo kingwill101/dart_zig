@@ -3,14 +3,13 @@
 [Back to the package guide](../README.md)
 
 Import `package:dart_zig/dart_zig.dart`. The complete runnable example is
-[bin/toolkit.dart](../bin/toolkit.dart); the region names below identify the
+[demo/toolkit.dart](../example/runtime_features_example/demo/toolkit.dart); the region names below identify the
 same snippets embedded in Dart API documentation.
 
 ## Start and close a session
 
-The `session-setup` region creates a `NativeSession` and `GeneratedApi`.
-The session starts native workers and initializes `dart_api_dl`; the facade
-checks that the application schema matches the native library.
+The `session-setup` region creates a `NativeSession` and the example's
+`FeatureApi`. The session starts native workers and initializes `dart_api_dl`.
 
 Use `try`/`finally` and always await `session.close()`. Pending calls fail when
 shutdown starts. For graceful application shutdown, await the work you want to
@@ -78,7 +77,7 @@ as long as the view is used. `buffer.copy()` creates independent Dart bytes.
 Never access a borrowed view after disposal. Native finalizers are a fallback;
 explicit `dispose()` gives predictable release timing.
 
-The demo uses raw route 8 for this buffer operation. Its schema-generated
+The demo uses raw route 8 for this buffer operation. Its application-defined
 `api.echo` uses length-prefixed byte encoding, so the typed and raw payload
 representations differ. Use the corresponding facade/codec consistently.
 
@@ -96,9 +95,11 @@ See [failure categories](runtime.md#failure-categories) for error codes.
 
 ## Lower-level native requests
 
-[bin/main.dart](../bin/main.dart) demonstrates `NativeBridge`: native code submits
+[bin/main.dart](../example/native_requests_example/bin/main.dart) demonstrates `NativeBridge`: native code submits
 requests that Dart consumes with `nextRequest()`. Reply with sequential awaited
 `add()` writes, then `finish()`, `fail()`, or `cancel()`.
+The separate [stress example](../example/native_requests_example/bin/stress.dart)
+checks bounded replies, cancellation, and shutdown.
 
 Only one `nextRequest()` read may be pending. Reply completion means the frame was
 queued, not that native code consumed it. If native producers outlive synchronous

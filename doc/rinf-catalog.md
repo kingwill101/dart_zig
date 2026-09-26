@@ -93,7 +93,7 @@ native transfer behavior to Web without separate evidence.
 
 Rinf uses Serde/Bincode with matching generated Dart representations.
 
-| Category | Documented Rust coverage | Our schema today |
+| Category | Documented Rust coverage | Current dart_zig example |
 | --- | --- | --- |
 | Signed integers | i8, i16, i32, i64, i128 | i64 |
 | Unsigned integers | u8, u16, u32, u64, u128 | u32, u64 |
@@ -248,18 +248,18 @@ Evidence: [Dart API](https://github.com/cunarist/rinf/blob/b995c99e60c31d32f16cd
 
 This comparison is based on our [session](../lib/src/session.dart),
 [signal bus](../lib/src/signal_bus.dart), [runtime](../zig/src/runtime/runtime.zig),
-[schema](../schema.json), [generator](../tool/generate_models.py), and
+[example Dart API](../example/runtime_features_example/lib/src/models.dart), and
 [build hook](../hook/build.dart). It is a source-level assessment.
 
 | Capability | Status | Concrete gap/action |
 | --- | --- | --- |
-| Generated typed calls and results | Present | Preserve alongside event APIs. |
+| Typed calls and results | Present in the example | Keep application wrappers alongside event APIs. |
 | Typed native-to-Dart events | Partial | Add generated native emitters; remove raw route/codec work for users. |
 | Independent Dart-to-native signals | Partial | `call(signal: true)` still creates a task/result obligation; add a true endpoint send/receive contract. |
 | Latest-value state | Missing | Session-scoped snapshot and subscription semantics. |
 | Typed message plus binary attachment | Missing | Byte calls/buffers exist, but frames have one payload and no typed attachment envelope. |
-| Rich generated types | Partial | Maps, sets, fixed arrays, tuples, smaller widths, f32, 128-bit policy. |
-| Type-driven Zig authoring | Missing | Current explicit JSON schema; consider an opt-in comptime declaration frontend. |
+| Rich application types | Partial | Maps, sets, fixed arrays, tuples, smaller widths, f32, 128-bit policy. |
+| Type-driven Zig authoring | Out of scope | Applications own their Dart and Zig models and codecs. |
 | Streams, callbacks, cancellation, deadlines | Present | Preserve; Rinf's guides do not expose equivalent first-class RPC surfaces. |
 | Native object handles and owned buffers | Present | Preserve ownership semantics; avoid forcing objects into serialized messages. |
 | Bounded admission and delivery | Present | Expose configurable event/state policies without removing budgets. |
@@ -316,10 +316,8 @@ runtime is a separate project and is unnecessary for the first useful endpoint A
 
 ### D. Improve authoring and packaging together
 
-Keep the current schema as a stable intermediate representation. Explore Zig
-comptime metadata as an additional frontend that emits that representation;
-generate codecs, endpoint IDs, typed wrappers, and diagnostics from it. Preserve
-the existing CLI for low-level Dart FFI declarations.
+Applications maintain Dart and Zig models, codecs, and typed wrappers alongside
+their dispatch code. Preserve the CLI for Dart FFI declarations.
 
 The eventual separate repository can contain a Zig core, a plain Dart package,
 an optional Flutter adapter, and generation/tooling support. Avoid splitting into
@@ -339,7 +337,7 @@ These are proposed future checks, not tests executed by this research task.
    work in flight; reject stale-generation results; close external producers;
    prove paused streams do not starve unrelated work on the selected backend.
 4. **Generation ergonomics.** Add watch/config/doctor/scaffold workflows, richer
-   types, useful source-location diagnostics, schema evolution rules, and
+   types, useful source-location diagnostics, API evolution rules, and
    reproducible output. Exercise a truly separate consumer/native library.
 5. **Distribution and integrations.** Validate native platform packaging and
    debug/release behavior. Add a fake transport and reusable boundary-test

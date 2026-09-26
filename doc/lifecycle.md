@@ -1,6 +1,6 @@
 # Signals, ownership, and cleanup
 
-[Documentation home](index.md) · [Existing executable examples](../bin/toolkit.dart)
+[Documentation home](index.md) · [Existing executable examples](../example/runtime_features_example/demo/toolkit.dart)
 
 ## Choose a call, signal, or stream
 
@@ -10,7 +10,7 @@ on **queue admission**, not application processing. Waiting signals share the
 session's pending count and byte budgets. Use streams for a sequence whose
 producer must follow the receiver's pace.
 
-`GeneratedApi.updates` demonstrates a bidirectional endpoint. Its native dispatcher
+`FeatureApi.updates` demonstrates a bidirectional endpoint. Its native dispatcher
 receives one input at a time; multiple native workers may execute different
 messages concurrently, so worker completion order is not guaranteed. Generated
 `emitUpdates` also permits unsolicited native output. Native emitters report
@@ -25,15 +25,18 @@ budget. Application endpoint limits do not increase that upstream limit.
 ## Latest value and binary attachments
 
 A state endpoint retains one latest value and replays it when a new subscriber
-registers. Registration and snapshot enqueue happen on the same Dart event loop,
-so an update cannot slip between those steps. This intentionally provides replay;
+registers. Construct `FeatureApi` before native state updates begin so its
+endpoint subscribes immediately, even if `updates` is read later. Registration
+and snapshot enqueue happen on the same Dart event loop, so an update cannot
+slip between those steps. This intentionally provides replay;
 Rinf's separate latest-value getter does not imply identical replay behavior.
-Latest state belongs to a session and is discarded on close/restart.
+Latest state belongs to the endpoint and is discarded on close/restart.
 
 Each `SignalPack<T>` contains typed metadata and an owned binary attachment.
 Dispose **every received pack**, including values obtained through `latest`.
 `retain()` acquires another independent lease. The `state-attachments` region in
-`bin/toolkit.dart` demonstrates sending, receiving, snapshots, and replay.
+`example/runtime_features_example/demo/toolkit.dart` demonstrates sending,
+receiving, snapshots, and replay.
 
 On the VM, attachment slices retain the received native allocation without copying
 its binary payload into Dart. Broadcast subscribers have separate leases over the

@@ -10,23 +10,27 @@ signals, streams, callbacks, and stateful objects.
 
 ## Your first steps
 
-1. [Run the existing example](../README.md#run). Call real Zig code through the
-   generated Dart API and native build hook.
+1. [Set up your package](../README.md#getting-started). Call Zig code through
+   generated FFI bindings and a native build hook.
 2. [Explore the Dart API](usage.md). Follow calls, events, streams, and ownership
    using the same runnable example.
-3. [Define an operation](generation.md#adding-an-operation). Generate matching
-   models and implement the native handler.
+3. [Explore project setup](generation.md#project-setup-and-generation). Define
+   application models, codecs, and native handlers.
 
 ## Several ways to communicate
 
 | You need to… | Start with… |
 | --- | --- |
-| Get a result from native work | A generated asynchronous call |
+| Get a result from native work | An asynchronous session call |
 | Observe native events | Typed signal subscriptions |
 | Consume incremental results | A native stream with production credits |
 | Let Zig request Dart work | An asynchronous callback |
 | Keep state in native memory | A generation-checked native object handle |
 | Avoid the final result payload copy | An explicitly owned native buffer |
+
+Start with the [minimal example](../example/minimal_example/README.md) for one
+generated FFI call, then use the [runtime feature example](../example/runtime_features_example/README.md)
+for sessions and events.
 
 The runtime supplies bounded queues, cancellation, deadlines, batch delivery,
 and `dart_api_dl` wake notifications. Application code supplies its own operations.
@@ -36,12 +40,11 @@ retaining native memory.
 ## Ready today, growing tomorrow
 
 [Implementation status](PLAN.md) records completed work and its verification
-scope. [Performance notes](../benchmark/README.md) report local measurements
+scope. [Performance notes](../example/runtime_features_example/benchmark/README.md) report local measurements
 without promising production throughput.
 
-We are studying endpoint ergonomics, latest-value state, binary attachments,
-and Flutter lifecycle integration. The [Rinf research catalog](rinf-catalog.md)
-records these proposals; they are not yet available APIs.
+The [Rinf research catalog](rinf-catalog.md) records the feature inventory and
+remaining proposals. Flutter lifecycle integration stays outside the core package.
 
 ## A living guide
 
@@ -49,5 +52,5 @@ Add a focused tutorial when a workflow is ready, a reference page when an API
 stabilizes, and a design note while decisions are still being explored. Keep
 examples connected to executable code and mark unverified behavior clearly.
 
-[Contribute a page](documentation.md#add-a-page), or follow the API reference in
+[Contribute a page](documentation.md#writing-and-previewing-documentation), or follow the API reference in
 the navigation for individual Dart classes and methods.
