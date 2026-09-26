@@ -1,4 +1,7 @@
 const std = @import("std");
+const builtin = @import("builtin");
+
+const allocator = if (builtin.target.cpu.arch == .wasm32) std.heap.wasm_allocator else std.heap.c_allocator;
 
 const tile_rows = 16;
 
@@ -85,7 +88,7 @@ pub const Render = struct {
     }
 
     pub fn deinit(self: *Render) void {
-        std.heap.c_allocator.free(self.pixels);
+        allocator.free(self.pixels);
     }
 };
 
@@ -102,7 +105,7 @@ pub fn render(request: RenderRequest) !Render {
     const capacity = @as(usize, request.width) * tile_rows * 4;
     return .{
         .request = request,
-        .pixels = try std.heap.c_allocator.alloc(u8, capacity),
+        .pixels = try allocator.alloc(u8, capacity),
         .next_row = request.firstRow,
     };
 }

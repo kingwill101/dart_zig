@@ -2,11 +2,9 @@ import 'dart:async';
 import 'dart:typed_data';
 import 'dart:ui' as ui;
 
-import 'package:dart_zig/dart_zig.dart';
+import 'package:fractal_flutter_example/src/generated/generated.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
-
-import 'generated/api.g.dart';
-import 'generated/runtime_bindings.g.dart' show createSession;
 
 enum _Scene {
   overview('Overview', -0.5, 0, 3.2),
@@ -255,7 +253,9 @@ class _FractalPageState extends State<FractalPage> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'DART + ZIG / NATIVE COMPUTE',
+                        kIsWeb
+                            ? 'DART + ZIG / WASM COMPUTE'
+                            : 'DART + ZIG / NATIVE COMPUTE',
                         style: theme.textTheme.labelLarge?.copyWith(
                           color: theme.colorScheme.primary,
                           letterSpacing: 2,
@@ -265,7 +265,9 @@ class _FractalPageState extends State<FractalPage> {
                       Text('Fractal Lab', style: theme.textTheme.displayMedium),
                       const SizedBox(height: 8),
                       Text(
-                        'Explore the Mandelbrot set. Four Zig workers compute RGBA tiles while Flutter keeps the controls and progress responsive.',
+                        kIsWeb
+                            ? 'Explore the Mandelbrot set. Zig computes RGBA tiles in WebAssembly as Dart grants stream credit.'
+                            : 'Explore the Mandelbrot set. Four Zig workers compute RGBA tiles while Flutter keeps the controls and progress responsive.',
                         style: theme.textTheme.bodyLarge?.copyWith(
                           color: theme.colorScheme.onSurfaceVariant,
                         ),
@@ -374,10 +376,7 @@ class _FractalPageState extends State<FractalPage> {
                         '${(_displayedSteps! / 1e6).toStringAsFixed(1)} M iterations',
                       ),
                     if (_renderTime != null)
-                      _stat(
-                        'Native stream',
-                        '${_renderTime!.inMilliseconds} ms',
-                      ),
+                      _stat('Zig stream', '${_renderTime!.inMilliseconds} ms'),
                     if (_renderTime != null)
                       _stat(
                         'Pixel rate',
@@ -496,7 +495,9 @@ class _FractalPageState extends State<FractalPage> {
             ),
             const SizedBox(height: 16),
             Text(
-              'Each tile is computed after Dart grants stream credit. The displayed native stream time includes FFI delivery and Dart tile copies; image decode is shown separately.',
+              kIsWeb
+                  ? 'Each tile is computed after Dart grants stream credit. Zig work runs on the browser event loop; image decode is shown separately.'
+                  : 'Each tile is computed after Dart grants stream credit. The Zig stream time includes FFI delivery and Dart tile copies; image decode is shown separately.',
               style: theme.textTheme.bodySmall?.copyWith(
                 color: theme.colorScheme.onSurfaceVariant,
               ),

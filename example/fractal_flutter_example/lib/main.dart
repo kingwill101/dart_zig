@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:fractal_flutter_example/src/generated/generated.dart';
 
 import 'src/fractal_page.dart';
 
-void main() {
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await initializeZig();
   runApp(const FractalApp());
 }
 
