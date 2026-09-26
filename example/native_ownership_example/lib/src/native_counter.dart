@@ -1,6 +1,4 @@
-import 'package:dart_zig/dart_zig.dart';
-
-import 'generated/protocol.g.dart';
+import 'generated/generated.dart';
 
 /// Owns one session-local Zig counter handle.
 final class NativeCounter {
