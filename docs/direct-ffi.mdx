@@ -1,0 +1,39 @@
+---
+title: Direct FFI
+description: Generate an ordinary Dart FFI call when a native session is unnecessary.
+---
+
+# Direct FFI
+
+For a short native function that returns one result, use
+`native_toolchain_zig` directly. This path does not require a `dart_zig`
+session, event route, or message codec. Use the session API when work needs
+native workers, cancellation, signals, streams, or callbacks.
+
+Add `hooks`, `logging`, and `native_toolchain_zig` to the application's
+`pubspec.yaml`. Create a `zig/` package with `zig init`; its `build.zig`
+should compile a dynamic library rooted at `src/exports.zig` and install it.
+Export a C ABI function:
+
+```zig
+export fn add(a: i64, b: i64) i64 {
+    return a + b;
+}
+```
+
+Add a `hook/build.dart` using `ZigBuilder`, with the asset and library names
+matching your package. Generate the Dart binding from the Dart package root:
+
+```sh
+dart run native_toolchain_zig:zig bindings \
+  --zig-dir zig \
+  --root-source-file src/exports.zig \
+  --output lib/src/ffi.g.dart \
+  --asset-id package:my_app/my_app.dart
+```
+
+The resulting Dart `add(int, int)` calls the Zig export directly. Regenerate
+after changing exported signatures. The complete build file and hook are in
+the [direct FFI setup guide](https://github.com/kingwill101/dart_zig/blob/main/doc/generation.md#direct-ffi);
+the [minimal example](https://github.com/kingwill101/dart_zig/tree/main/example/minimal_example)
+is a runnable package.

@@ -1,0 +1,58 @@
+---
+title: Signals and state
+description: Send typed one-way messages and replay the latest state value.
+---
+
+# Signals and state
+
+Declare a named endpoint in `pub const events`. `.signal` delivers live
+messages; `.state` also keeps the latest value for new subscribers. The
+generator creates a `SignalEndpoint<T>` on `ZigApi` for each name.
+
+```zig
+const dz = @import("dart_zig");
+
+pub const events = .{
+    .notifications = .{
+        .kind = dz.protocol.RouteKind.signal,
+        .message = dz.protocol.Text,
+    },
+    .updates = .{
+        .kind = dz.protocol.RouteKind.state,
+        .message = dz.protocol.Text,
+    },
+};
+
+pub fn publish(context: *dz.Context, message: dz.protocol.Text) !void {
+    try dz.events.emit(context, events, .notifications, message, &.{});
+}
+```
+
+Construct `ZigApi(session)` before state updates you need to replay. Its
+endpoints subscribe to the session immediately, even if the corresponding
+field is read later. Subscribe before emitting a non-replaying signal:
+
+```dart
+final api = ZigApi(session);
+final next = api.notifications.stream.first;
+await api.publish('hello');
+final pack = await next;
+try {
+  print(pack.message);
+} finally {
+  pack.dispose();
+}
+```
+
+`api.updates.stream` receives later state values, and a new subscriber receives
+the current snapshot. `api.updates.latest` gives a retained snapshot that must
+also be disposed. State is scoped to the session; it is cleared on close or
+restart.
+
+An endpoint's `send(message)` sends Dart-to-Zig input. Its future completes
+when the message enters the queue, not when application logic has processed it.
+Use a [call](/calls) when the sender needs a result or processing
+acknowledgment. Each `SignalPack` owns an attachment lease, including when the
+attachment is empty. Read [buffers and ownership](/buffers-and-ownership) before
+retaining one. A Flutter [StreamBuilder example](/dart-and-flutter) shows a
+typed Zig message on screen.

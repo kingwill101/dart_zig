@@ -1,0 +1,43 @@
+---
+title: Message types
+description: Understand which Zig values become generated Dart request and event types.
+---
+
+# Message types
+
+The typed handler generator reads Zig signatures at comptime. It generates
+Dart codecs for these wire shapes:
+
+| Zig declaration | Generated Dart value |
+| --- | --- |
+| `bool` | `bool` |
+| 8-, 16-, 32-, and 64-bit signed/unsigned integers | `int` |
+| `f32`, `f64` | `double` |
+| `dz.protocol.Text` | `String` |
+| `[]const u8` | `Uint8List` |
+| `void` or `dz.protocol.Empty` | `Null` |
+| Plain Zig `struct` | Dart record with named fields |
+
+Fields of a plain struct are encoded in declaration order. Nested structs can
+contain other supported wire types. The generated Dart record preserves Zig
+field names, so `currentNumber` in Zig becomes `currentNumber` in Dart.
+
+```zig
+pub const MyMessage = struct {
+    currentNumber: i32,
+    otherBool: bool,
+};
+```
+
+The generated Dart type is `({int currentNumber, bool otherBool})`. You do not
+write a separate Dart model or codec for this declaration. Edit the Zig type
+and rerun `dart run dart_zig:dart_zig generate`.
+
+The handler generator currently rejects Zig tuples and other protocol types
+outside its supported set at generation time. This wire type list is separate
+from what the lower-level `native_toolchain_zig` FFI generator can describe;
+direct FFI follows Zig's exported C ABI rather than this message codec.
+
+For large bytes that should travel beside typed metadata, use a
+[binary attachment](/buffers-and-ownership). Its ownership rules differ from
+ordinary decoded fields.

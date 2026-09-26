@@ -1,0 +1,44 @@
+---
+title: Cleanup and restart
+description: Close sessions, cancel work, and release application-owned native resources.
+---
+
+# Cleanup and restart
+
+A `NativeSession` owns pending operations, workers, callbacks, event endpoints,
+and native storage. Close it when its host no longer needs it:
+
+```dart
+final session = createSession();
+try {
+  final api = ZigApi(session);
+  print(await api.add((a: 20, b: 22)));
+} finally {
+  await session.close();
+}
+```
+
+Closing stops new work, rejects pending Dart calls, wakes native workers, and
+waits for them to exit before freeing session storage. Repeated close calls
+share the same future. A native handler doing long CPU work must call
+`context.check()` periodically; cancellation cannot interrupt arbitrary Zig
+code safely.
+
+If your application starts native producers outside the session's workers,
+provide `stopExternal` when creating the session. Stop and join those producers
+before session storage is freed. A failed stop or cleanup retains storage
+rather than freeing memory that external code might still use.
+
+The core package also provides host-controlled lifecycle helpers:
+
+- `CancellationScope` links related Dart work and delivers cancellation
+  cooperatively.
+- `CleanupScope` runs registered disposers in reverse order and aggregates
+  failures.
+- `RestartableResource<T>` disposes the old resource before creating a
+  replacement. A replacement session has fresh state, callbacks, and handles.
+
+These helpers do not depend on Flutter. A Flutter widget can close its owned
+session during teardown; CLI tools and servers can choose their own shutdown
+point. The [lifecycle example](https://github.com/kingwill101/dart_zig/tree/main/example/lifecycle_example)
+shows cancellation, cleanup order, and restart.

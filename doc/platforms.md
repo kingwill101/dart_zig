@@ -17,7 +17,7 @@ The raw-pointer `NativeBridge` API is VM-only.
 ```dart
 import 'package:runtime_features_example/runtime_features_example.dart';
 
-await initializeZig(wasmUri: Uri.parse('assets/dart_zig.wasm'));
+await initializeZig();
 final session = createSession();
 final api = FeatureApi(session);
 try {

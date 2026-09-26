@@ -1,0 +1,44 @@
+---
+title: Dart callbacks
+description: Let Zig request asynchronous work from Dart during a native call.
+---
+
+# Dart callbacks
+
+Callbacks let a Zig operation ask Dart to perform work and continue after Dart
+replies. The callback may itself make another native call. This differs from
+a [signal](/signals-and-state), which sends a one-way message without waiting
+for an application result.
+
+Register a typed callback on the session and pass its ID to a native route:
+
+```dart
+final session = createSession(workers: 1);
+try {
+  final api = ProtocolApi(session);
+  final callback = session.registerTypedCallback<int, int>(
+    (value) => api.add((a: value, b: value)),
+    input: const AskDartResponseCodec(),
+    output: const AskDartResponseCodec(),
+  );
+  try {
+    final result = await api.askDart((callbackId: callback.id, value: 21));
+    print(result);
+  } finally {
+    callback.dispose();
+  }
+} finally {
+  await session.close();
+}
+```
+
+The current [callbacks example](https://github.com/kingwill101/dart_zig/tree/main/example/callbacks_example)
+uses the explicit `protocol.zig` route form and generated `ProtocolApi` codecs.
+Its Zig dispatcher sends a callback frame, returns control to the runtime,
+and resumes when Dart's result arrives. It works with one native worker because
+the worker is free while Dart handles the callback.
+
+Dispose a registration when it is no longer needed. Closing the session also
+cleans up its registrations. Unregistering prevents later invocations but
+cannot interrupt a Dart callback already running. A cancelled or closed
+native request discards a late callback result.

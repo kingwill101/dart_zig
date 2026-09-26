@@ -1,0 +1,58 @@
+---
+title: Web and Wasm
+description: Run the same Dart session API with Zig compiled to WebAssembly.
+---
+
+# Web and Wasm
+
+The package conditionally selects native FFI on the Dart VM and a WebAssembly
+transport on Web. Application code can keep the same generated session and
+typed endpoint API. When the application has a `web/` directory,
+`dart_zig generate` builds `web/<package_name>.wasm` and writes a conditional
+`session.g.dart` entrypoint. The Web server must serve that asset.
+
+On Web, initialize the module before opening a session:
+
+```dart
+import 'package:my_app/src/generated/generated.dart';
+
+await initializeZig();
+final session = createSession();
+try {
+  final api = ZigApi(session);
+  // Call generated routes here.
+} finally {
+  await session.close();
+}
+```
+
+`initializeZig()` is a no-op on the VM. On Web it loads `<package_name>.wasm` from
+the app's Web root before `createSession()`; pass `wasmUri` only when serving
+the asset elsewhere, or provide `wasmBytes` from a custom loader. The
+[Web example](https://github.com/kingwill101/dart_zig/tree/main/example/web_example)
+builds one typed Zig handler for native Dart and Wasm:
+
+```sh
+cd example/web_example
+dart pub get
+dart run dart_zig:dart_zig generate
+sh tool/build_web.sh
+node tool/run_web.mjs
+```
+
+Its Node runner executes the compiled JavaScript against Wasm. Serve the
+browser page with `dart run tool/serve_web.dart` for browser inspection.
+The `fractal_flutter_example`, `particle_stream_flutter_example`, and
+`typed_signal_flutter_example` projects also include Web scaffolds and can run
+with `flutter run -d chrome` after `flutter pub get`.
+
+Web scheduling differs from native workers: Zig work runs cooperatively on the
+host event loop. Split long operations into short continuations so the page
+stays responsive. Paused streams wait for credits. Wasm output is copied to
+Dart-owned memory before it is exposed; native buffer ownership guarantees
+do not imply zero-copy Wasm transfer. Integer values that exceed JavaScript's
+exact integer range need explicit care.
+
+The Web example demonstrates the supported path. Other browser behavior,
+including the application's own asset serving and security policy, needs to
+be checked in its target host.

@@ -1,0 +1,59 @@
+---
+title: Streams
+description: Produce multiple native results at the pace of the Dart listener.
+---
+
+# Streams
+
+A stream is a call that produces several items. Use it for incremental
+results, such as search matches or image tiles, when Dart should control how
+quickly Zig produces the next item.
+
+The Zig handler returns an iterator type with `pub const Item` and `next()`:
+
+```zig
+pub fn squares(count: u32) !Squares {
+    if (count > 1000) return error.TooLarge;
+    return .{ .count = count };
+}
+
+pub const Squares = struct {
+    pub const Item = i64;
+    count: u32,
+    index: u32 = 0,
+
+    pub fn next(self: *Squares) !?Item {
+        if (self.index == self.count) return null;
+        const value: i64 = self.index;
+        self.index += 1;
+        return value * value;
+    }
+};
+```
+
+The generator recognizes this return type and produces a Dart `Stream<int>`:
+
+```dart
+final session = createSession();
+try {
+  final squares = ZigApi(session).squares(5);
+  await for (final square in squares) {
+    print(square); // 0, 1, 4, 9, 16
+  }
+} finally {
+  await session.close();
+}
+```
+
+Listening starts the native operation. The runtime grants one production
+credit at a time. Pausing the Dart subscription withholds further credits;
+one item may already be in flight. Cancelling the subscription invalidates
+the native task. The iterator may implement `deinit` to release its resources.
+Continuation-based producers release their native worker while waiting for
+another credit.
+
+A timeout covers the whole stream, including time spent paused. Stream
+requests cannot retain borrowed slices from their input frame; copy data into
+owned Zig storage if the iterator needs it after dispatch returns. For a
+standalone runnable version, see the
+[streams example](https://github.com/kingwill101/dart_zig/tree/main/example/streams_example).

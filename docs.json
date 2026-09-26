@@ -1,0 +1,50 @@
+{
+  "$schema": "https://docs.page/schema.json",
+  "name": "dart_zig",
+  "description": "Dart-first calls, signals, streams, and native ownership powered by Zig.",
+  "social": {
+    "github": "kingwill101/dart_zig"
+  },
+  "check": {
+    "ignoreExternalHosts": ["github.com"]
+  },
+  "sidebar": [
+    {
+      "group": "Start here",
+      "pages": [
+        { "title": "Overview", "href": "/" },
+        { "title": "Getting started", "href": "/getting-started" },
+        { "title": "Project layout and generation", "href": "/project-layout" },
+        { "title": "Direct FFI", "href": "/direct-ffi" },
+        { "title": "Examples", "href": "/examples" }
+      ]
+    },
+    {
+      "group": "Communication",
+      "pages": [
+        { "title": "Handlers and events", "href": "/handlers-and-events" },
+        { "title": "Calls", "href": "/calls" },
+        { "title": "Signals and state", "href": "/signals-and-state" },
+        { "title": "Streams", "href": "/streams" },
+        { "title": "Dart callbacks", "href": "/callbacks" },
+        { "title": "Message types", "href": "/message-types" }
+      ]
+    },
+    {
+      "group": "Resources and lifecycle",
+      "pages": [
+        { "title": "Buffers and ownership", "href": "/buffers-and-ownership" },
+        { "title": "Cleanup and restart", "href": "/cleanup-and-restart" },
+        { "title": "Errors and diagnostics", "href": "/errors-and-diagnostics" }
+      ]
+    },
+    {
+      "group": "Platforms",
+      "pages": [
+        { "title": "Dart and Flutter", "href": "/dart-and-flutter" },
+        { "title": "Web and Wasm", "href": "/web-and-wasm" },
+        { "title": "Isolates", "href": "/isolates" }
+      ]
+    }
+  ]
+}

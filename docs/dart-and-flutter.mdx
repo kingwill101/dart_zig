@@ -1,0 +1,45 @@
+---
+title: Dart and Flutter
+description: Use the same dart_zig core from Dart applications and Flutter widgets.
+---
+
+# Dart and Flutter
+
+`dart_zig` is a Dart package without a Flutter SDK dependency. A CLI, server,
+package, isolate, or Flutter app can own a `NativeSession` and its generated
+`ZigApi`. The host decides when to create and close that session.
+
+Flutter uses ordinary Dart futures and streams from the generated API. For a
+typed Zig-to-Flutter event, declare the payload and event in
+`zig/src/handlers.zig`, then regenerate. A widget can keep the session, API,
+and mapped stream in its `State`:
+
+```dart
+late final NativeSession _session = createSession();
+late final ZigApi _api = ZigApi(_session);
+late final Stream<({int currentNumber, bool otherBool})> _messages =
+    _api.myMessage.stream.map((pack) {
+      try {
+        return pack.message;
+      } finally {
+        pack.dispose();
+      }
+    });
+```
+
+Pass `_messages` to `StreamBuilder`. Keep the stream stable across rebuilds.
+The [complete example](https://github.com/kingwill101/dart_zig/tree/main/example/typed_signal_flutter_example)
+uses a button to call `api.publish(7)`; the Zig handler emits `MyMessage` and
+the widget displays its fields. `publish` is that example's trigger, not a
+special function name required by Zig.
+
+Close the session when the widget or application owner is disposed. Flutter's
+`dispose` is synchronous, so the example starts asynchronous close with
+`unawaited(_session.close())`. A higher-level application owner can await
+shutdown when it needs a completion guarantee.
+
+For long-running native work, see the
+[fractal](https://github.com/kingwill101/dart_zig/tree/main/example/fractal_flutter_example)
+and [particle stream](https://github.com/kingwill101/dart_zig/tree/main/example/particle_stream_flutter_example)
+Flutter projects. Their platform directories are application scaffolding;
+Flutter integration is not built into the core package.

@@ -1,0 +1,67 @@
+---
+title: Project layout and generation
+description: Where application Zig code, the build hook, and generated Dart bindings belong.
+---
+
+# Project layout and generation
+
+An application that uses sessions owns its native asset. `dart_zig` supplies
+reusable Dart and Zig runtime code; it does not contain the application's
+handlers, models, or exported symbols.
+
+```text
+my_app/
+├── pubspec.yaml
+├── hook/build.dart
+├── zig/
+│   ├── build.zig
+│   ├── build.zig.zon
+│   └── src/handlers.zig
+└── lib/
+    └── src/
+        ├── ffi.g.dart
+        └── generated/
+            ├── generated.dart
+            ├── api.g.dart
+            ├── runtime_bindings.g.dart
+            ├── session.g.dart
+            └── web_bindings.g.dart  (when web/ exists)
+```
+
+`dart run dart_zig:dart_zig init` creates the Zig build, handler root, and
+build hook, then generates the Dart files. It reads the package name from
+`pubspec.yaml` and stops if it would replace an existing native setup.
+
+`dart run dart_zig:dart_zig generate` refreshes the generated Dart files after
+changing the Zig interface. It reads public functions and `events` in
+`zig/src/handlers.zig`; applications can import implementation from other Zig
+files into that root. On native targets, the build hook compiles the package's
+Zig asset when Dart or Flutter builds the application. It uses
+`native_toolchain_zig` and the shared `dart_zig` Zig dependency from
+`build.zig.zon`. The generator runs the `wasm` step for Web projects.
+
+| File | Role |
+| --- | --- |
+| `zig/src/handlers.zig` | Dart-callable operations and declared event routes |
+| `zig/build.zig.zon` | Zig dependency on the shared `dart_zig` source |
+| `zig/build.zig` | Builds the application's native library |
+| `hook/build.dart` | Connects the Zig build to Dart native assets |
+| `lib/src/generated/generated.dart` | Stable import for the runtime, typed API, and session factory |
+| `lib/src/ffi.g.dart` | Generated native FFI declarations |
+| `lib/src/generated/api.g.dart` | Generated typed calls, event endpoints, and codecs |
+| `lib/src/generated/runtime_bindings.g.dart` | Generated `createSession()` factory for this asset |
+| `lib/src/generated/session.g.dart` | Selects the native or Web factory through a conditional export |
+| `web/<package_name>.wasm` | Generated WebAssembly asset when the project has a `web/` directory |
+
+The generated `build.zig` has a separate `wasm` step for the Web target; it
+does not require a second build file. `generate` compiles and copies the Wasm
+asset into `web/` when that directory exists. Flutter must already have Web
+platform support (`flutter create --platforms=web .` adds it to an existing
+Flutter project).
+
+The current generator also accepts an explicit `zig/src/protocol.zig` route
+form, which generates `ProtocolApi`. Use one declaration form per package: it
+rejects a project containing both `handlers.zig` and `protocol.zig`.
+
+See [getting started](/getting-started) for the first call and
+[handlers and events](/handlers-and-events) for the Zig declarations.

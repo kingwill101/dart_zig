@@ -1,0 +1,64 @@
+---
+title: Buffers and ownership
+description: Dispose signal packs and native buffers at the right time.
+---
+
+# Buffers and ownership
+
+Ordinary typed call results are decoded into Dart-owned values. Explicit
+`NativeBuffer` values and signal attachments carry ownership that the caller
+must release. A native finalizer is a fallback, not a substitute for timely
+`dispose()`.
+
+## Signal packs
+
+Each listener receives a `SignalPack<T>` with `message` and `attachment`.
+Dispose every pack you receive, even if the attachment is empty:
+
+```dart
+final pack = await api.notifications.stream.first;
+try {
+  print(pack.message);
+} finally {
+  pack.dispose();
+}
+```
+
+Use `pack.retain()` if another owner needs to keep the attachment after your
+code releases its pack. Each retained pack is a separate lease and needs its
+own disposal. `endpoint.latest` also returns a retained snapshot that must be
+disposed.
+
+For Flutter `StreamBuilder`, map each pack to its decoded Dart value and
+dispose it during mapping. Keep the mapped stream as a field so rebuilds do
+not create a new subscription. The
+[typed signal Flutter example](https://github.com/kingwill101/dart_zig/tree/main/example/typed_signal_flutter_example)
+shows this pattern.
+
+## Binary attachments
+
+An event can send typed metadata and separate bytes:
+
+```dart
+await api.attachments.send(
+  (label: 'image', tag: Uint8List.fromList([1, 2])),
+  binary: Uint8List.fromList([3, 1, 4]),
+);
+```
+
+The receiver reads the binary data through `pack.attachment.view` while the
+pack is alive. To keep the data independently of the native lease, call
+`pack.attachment.copy()` before disposal.
+
+## Owned native results
+
+The lower-level `session.callBuffer` path returns a `NativeBuffer` and avoids
+the final native-to-Dart result copy. Its `view` borrows storage: do not read
+that view after disposing the buffer. `copy()` creates Dart-owned bytes.
+Input submission and native response construction can still copy, so this is
+not an end-to-end zero-copy protocol. On Web, output is copied out of Wasm
+memory before Dart receives it.
+
+For complete runnable code, see the
+[attachments example](https://github.com/kingwill101/dart_zig/tree/main/example/attachments_example)
+and [native ownership example](https://github.com/kingwill101/dart_zig/tree/main/example/native_ownership_example).

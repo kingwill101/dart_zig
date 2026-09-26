@@ -1,0 +1,48 @@
+---
+title: Calls
+description: Invoke Zig handlers asynchronously and receive typed results.
+---
+
+# Calls
+
+A public function in `zig/src/handlers.zig` becomes a typed method on the
+generated `ZigApi`. Its request parameter defines the Dart input; its
+error-union return type defines the result. The native worker executes the
+handler, so heavy work does not run on the calling Dart isolate.
+
+```zig
+pub const AddRequest = struct {
+    a: i64,
+    b: i64,
+};
+
+pub fn add(request: AddRequest) !i64 {
+    const sum = @addWithOverflow(request.a, request.b);
+    if (sum[1] != 0) return error.Overflow;
+    return sum[0];
+}
+```
+
+After `dart run dart_zig:dart_zig generate`, the matching Dart call is:
+
+```dart
+final session = createSession();
+try {
+  final api = ZigApi(session);
+  final sum = await api.add((a: 20, b: 22));
+  print(sum); // 42
+} finally {
+  await session.close();
+}
+```
+
+The generated API owns the request and response codecs. A call completes when
+its response is delivered or fails with a `NativeException`; a failure does not
+roll back effects the native handler already performed. Generated `startAdd`
+returns a `TypedCall` when you need explicit cancellation. A positive `timeout`
+can bound admission and execution. Long Zig loops must cooperate with
+cancellation by checking their `dz.Context`.
+
+Keep one session open for related work instead of opening one per call. If the
+sender does not need an acknowledgment, consider a [signal](/signals-and-state).
+For multiple values with consumer pacing, use a [stream](/streams).

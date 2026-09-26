@@ -1,0 +1,48 @@
+---
+title: Errors and diagnostics
+description: Handle failed calls, one-way signal failures, logs, and queue pressure.
+---
+
+# Errors and diagnostics
+
+Await generated calls and handle their failures. Transport and application
+failures are reported as `NativeException`; invalid Dart arguments can throw
+`ArgumentError`, and malformed codec input can throw `FormatException`.
+Native side effects may already have occurred before a call fails.
+
+Common failure codes include:
+
+| Code | Meaning |
+| --- | --- |
+| `busy` | Pending-call count or payload budget is exhausted |
+| `too_large` | Payload exceeds the configured session limit |
+| `cancelled`, `deadline`, `closed` | Cancellation, timeout, or shutdown |
+| `native_N` | Application or runtime failure frame |
+| `signal_overflow` | Paused signal listener exceeded its backlog |
+
+The message text is diagnostic detail, not a stable error identifier. A
+one-way signal has no call future carrying its handler's result. Observe
+`session.signalErrors` or the generated endpoint's `errors` stream for those
+failures. Diagnostic delivery is best effort when output capacity is full.
+
+Pass `onDiagnostic` when creating a session to observe lifecycle and
+backpressure events. `session.stats` reports queue and transport counters.
+`forwardNativeLogs(session, sink)` forwards structured Zig logs to your host
+logger and registers its own cleanup:
+
+```dart
+final session = createSession(
+  onDiagnostic: (event) => print('${event.kind}: route ${event.route}'),
+);
+try {
+  forwardNativeLogs(session, (log) => print('[${log.scope}] ${log.message}'));
+  // Run your generated API here.
+} finally {
+  await session.close();
+}
+```
+
+Use the [diagnostics example](https://github.com/kingwill101/dart_zig/tree/main/example/diagnostics_example)
+to see a native log reach Dart. For queue limits and shutdown behavior, read
+[buffers and ownership](/buffers-and-ownership) and
+[cleanup and restart](/cleanup-and-restart).

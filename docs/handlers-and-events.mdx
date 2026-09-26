@@ -1,0 +1,61 @@
+---
+title: Handlers and events
+description: Declare Dart-callable Zig handlers and typed native-to-Dart signals.
+---
+
+# Handlers and events
+
+The generator reads `zig/src/handlers.zig`. Public functions in that module
+become Dart-callable methods on `ZigApi`. A function's request parameter and
+error-union return value define its generated Dart types. The function name
+defines a stable route ID, so regenerate the bindings and native asset after
+renaming it.
+
+The same module can declare `pub const events` for named signal or state
+endpoints. For example:
+
+```zig
+const dz = @import("dart_zig");
+
+pub const MyMessage = struct {
+    currentNumber: i32,
+    otherBool: bool,
+};
+
+pub const events = .{
+    .myMessage = .{
+        .kind = dz.protocol.RouteKind.signal,
+        .message = MyMessage,
+    },
+};
+
+pub fn publish(context: *dz.Context, number: i32) !void {
+    try dz.events.emit(context, events, .myMessage, MyMessage{
+        .currentNumber = number,
+        .otherBool = @mod(number, 2) != 0,
+    }, &.{});
+}
+```
+
+Here `publish` is just an example handler name. The call to `dz.events.emit`
+encodes and sends a `MyMessage`; `&.{}` supplies no binary attachment. The
+generator produces two separate endpoints: `api.publish(number)` for the call
+and `api.myMessage.stream` for the signal. The Dart message is a typed record:
+
+```dart
+final messages = api.myMessage.stream.map((pack) {
+  try {
+    return pack.message;
+  } finally {
+    pack.dispose();
+  }
+});
+```
+
+Subscribe before emitting a `signal`: it does not replay missed messages. Use
+`.kind = dz.protocol.RouteKind.state` when new subscribers should receive the
+latest value. Keep the stream stable across Flutter rebuilds, and close the
+session when its owner is disposed.
+
+The complete Flutter `StreamBuilder` version lives in the
+[typed signal example](https://github.com/kingwill101/dart_zig/tree/main/example/typed_signal_flutter_example).

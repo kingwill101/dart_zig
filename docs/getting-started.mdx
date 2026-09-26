@@ -1,0 +1,69 @@
+---
+title: Getting started
+description: Add dart_zig to a new or existing Dart package.
+---
+
+# Getting started
+
+Use Zig 0.15.2 or 0.16.0. These steps work in an existing Dart package or a
+new package created with `dart create`.
+
+## Add dependencies
+
+Until `dart_zig` is published, point the Dart dependency at a local checkout:
+
+```yaml
+dependencies:
+  dart_zig:
+    path: /path/to/dart_zig
+  ffi: ^2.2.0
+  hooks: ^2.2.0
+  logging: ^1.3.0
+  native_toolchain_zig:
+    git:
+      url: https://github.com/kingwill101/native_toolchain_zig.dart.git
+      ref: cimport-generator-wip
+```
+
+From your package root, run:
+
+```sh
+dart pub get
+dart run dart_zig:dart_zig init
+```
+
+`init` creates `zig/build.zig.zon`, `zig/build.zig`, `zig/src/handlers.zig`, and
+`hook/build.dart`, then generates Dart bindings for your package. It stops
+instead of replacing any of those files if they already exist. For an existing
+Zig project, integrate the build hook and root module yourself, then run
+`dart run dart_zig:dart_zig generate`.
+
+If the package has a `web/` directory, generation also builds
+`web/<package_name>.wasm` and writes a conditional session factory. A Flutter
+project needs Flutter's Web platform scaffold before `flutter run -d chrome`.
+
+## Call a Zig handler
+
+The initialized `zig/src/handlers.zig` contains a public `add` function. The
+generator produces `ZigApi.add` and a `createSession()` factory:
+
+```dart
+import 'package:my_app/src/generated/generated.dart';
+
+Future<int> add(int a, int b) async {
+  await initializeZig();
+  final session = createSession();
+  try {
+    return await ZigApi(session).add((a: a, b: b));
+  } finally {
+    await session.close();
+  }
+}
+```
+
+Keep the session open for repeated calls. Regenerate after changing public Zig
+handlers or event declarations. Read [handlers and events](/handlers-and-events)
+for native-to-Dart messages.
+
+For a simple synchronous export that does not need sessions or signals, use
+`native_toolchain_zig` directly to generate an FFI binding.

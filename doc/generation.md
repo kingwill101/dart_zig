@@ -115,14 +115,12 @@ pub fn add(request: AddRequest) !i64 {
 
 `generate` evaluates the handler signatures and writes
 `lib/src/generated/api.g.dart` with the matching codecs and `ZigApi`.
-Export that generated API from your package and use it with the generated
-`createSession()` factory:
+It also writes `lib/src/generated/generated.dart`, which exports the generated
+API, the conditional `createSession()` factory, and the runtime. Import it from
+application code using the name in your `pubspec.yaml`:
 
 ```dart
-import 'package:dart_zig/dart_zig.dart';
-
-import 'src/generated/runtime_bindings.g.dart' show createSession;
-import 'src/generated/api.g.dart' show ZigApi;
+import 'package:my_app/src/generated/generated.dart';
 
 Future<int> add(int a, int b) async {
   await initializeZig();
@@ -137,6 +135,10 @@ Future<int> add(int a, int b) async {
 
 Call `add(20, 22)` from Dart. Keep a session open and reuse `ZigApi` when
 making many calls. Generated `startAdd` returns a cancellable `TypedCall`.
+The generated `build.zig` has a `wasm` step. When the project has a `web/`
+directory, `generate` also writes `web/<package_name>.wasm` and a Web factory;
+`session.g.dart` selects that factory on Web. A Flutter app must have Flutter's
+Web scaffold before `flutter run -d chrome`.
 A public handler returning an iterator with `Item` and `next()` becomes a
 credited stream; the runtime requests one item at a time as Dart grants credit.
 The shared Zig exports derive dispatch from handler signatures at comptime.
