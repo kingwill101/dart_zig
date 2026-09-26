@@ -16,9 +16,33 @@
           "title": "Using the Dart API"
         },
         {
-          "source": "example/README.md",
+          "source": "example/minimal_example/README.md",
+          "title": "Minimal example"
+        },
+        {
+          "source": "example/runtime_features_example/README.md",
           "title": "Feature examples"
+        },
+        {
+          "source": "example/native_requests_example/README.md",
+          "title": "Native request example"
         }
+      ]
+    },
+    {
+      "title": "Focused examples",
+      "pages": [
+        { "source": "example/calls_example/README.md", "title": "Calls" },
+        { "source": "example/streams_example/README.md", "title": "Streams" },
+        { "source": "example/signals_state_example/README.md", "title": "Signals and state" },
+        { "source": "example/attachments_example/README.md", "title": "Attachments" },
+        { "source": "example/callbacks_example/README.md", "title": "Callbacks" },
+        { "source": "example/native_ownership_example/README.md", "title": "Native ownership" },
+        { "source": "example/lifecycle_example/README.md", "title": "Lifecycle" },
+        { "source": "example/diagnostics_example/README.md", "title": "Diagnostics" },
+        { "source": "example/memory_transport_example/README.md", "title": "Memory transport" },
+        { "source": "example/isolates_example/README.md", "title": "Isolates" },
+        { "source": "example/web_example/README.md", "title": "Web and Wasm" }
       ]
     },
     {
@@ -38,10 +62,10 @@
         },
         {
           "source": "doc/generation.md",
-          "title": "Schema & generation"
+          "title": "Project setup & bindings"
         },
         {
-          "source": "benchmark/README.md",
+          "source": "example/runtime_features_example/benchmark/README.md",
           "title": "Performance"
         }
       ]
