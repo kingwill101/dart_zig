@@ -1,31 +1,13 @@
-const c = @cImport({
-    @cInclude("event.h");
-});
+const builtin = @import("builtin");
 
-/// Counting wake primitive backed by OS condition variables; never busy-polls.
-/// Destroy only after every waiter has exited.
-pub const Event = struct {
-    handle: *c.dz_event,
-    pub fn init() !Event {
-        return .{ .handle = c.dz_event_create() orelse return error.OutOfMemory };
-    }
-    pub fn signal(self: Event) void {
-        c.dz_event_signal(self.handle);
-    }
-    pub fn wait(self: Event) void {
-        c.dz_event_wait(self.handle);
-    }
-    pub fn epoch(self: Event) u64 {
-        return c.dz_event_epoch(self.handle);
-    }
-    pub fn waitSince(self: Event, epoch_value: u64) void {
-        c.dz_event_wait_since(self.handle, epoch_value);
-    }
-    pub fn deinit(self: Event) void {
-        c.dz_event_destroy(self.handle);
-    }
-};
+/// Native events share one contract across targets. Zig 0.16 moved blocking
+/// synchronization and clocks from std.Thread to std.Io.
+pub const Event = if (builtin.zig_version.minor >= 16)
+    @import("event_016.zig").Event
+else
+    @import("event_015.zig").Event;
 
-pub fn monotonicNs() u64 {
-    return c.dz_monotonic_ns();
-}
+pub const Clock = if (builtin.zig_version.minor >= 16)
+    @import("event_016.zig").Clock
+else
+    @import("event_015.zig").Clock;

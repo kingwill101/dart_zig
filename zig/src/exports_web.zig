@@ -14,9 +14,6 @@ fn status(err: anyerror) u32 {
 export fn dz_web_protocol() u32 {
     return dz.frames.protocol_version;
 }
-export fn dz_web_schema() u32 {
-    return @import("models").schema_fingerprint;
-}
 export fn dz_web_alloc(length: usize) ?[*]u8 {
     const bytes = allocator.alloc(u8, length) catch return null;
     return bytes.ptr;
@@ -24,17 +21,23 @@ export fn dz_web_alloc(length: usize) ?[*]u8 {
 export fn dz_web_free(data: [*]u8, length: usize) void {
     allocator.free(data[0..length]);
 }
+fn applicationDispatch(context: *dz.Context, kind: dz.frames.Kind, route: u32, bytes: []const u8) !void {
+    if (comptime @hasDecl(app, "dispatch")) return app.dispatch(context, kind, route, bytes);
+    return dz.handlers.dispatch(app, allocator, context, kind, route, bytes);
+}
 export fn dz_web_create(count: usize, bytes: usize, tasks: u32) ?*dz.Runtime {
-    const application = app.Application.create() catch return null;
-    return dz.Runtime.create(allocator, 0, .{ .messages = count, .bytes = bytes, .tasks = tasks }, app.dispatch, application) catch {
-        application.destroy();
+    const application = if (comptime @hasDecl(app, "Application")) app.Application.create() catch return null else null;
+    return dz.Runtime.create(allocator, 0, .{ .messages = count, .bytes = bytes, .tasks = tasks }, applicationDispatch, application) catch {
+        if (comptime @hasDecl(app, "Application")) application.destroy();
         return null;
     };
 }
 export fn dz_web_destroy(runtime: *dz.Runtime) void {
-    const application: *app.Application = @ptrCast(@alignCast(runtime.application.?));
-    runtime.destroy();
-    application.destroy();
+    if (comptime @hasDecl(app, "Application")) {
+        const application: *app.Application = @ptrCast(@alignCast(runtime.application.?));
+        runtime.destroy();
+        application.destroy();
+    } else runtime.destroy();
 }
 export fn dz_web_stop(runtime: *dz.Runtime) void {
     runtime.stop();
@@ -109,10 +112,4 @@ export fn dz_web_stats(runtime: *dz.Runtime, field: u32) f64 {
 }
 export fn dz_web_live(field: u32) f64 {
     return @floatFromInt(if (field == 0) dz.buffer_metrics.live_buffers.load(.acquire) else dz.buffer_metrics.live_bytes.load(.acquire));
-}
-export fn dz_web_sum(a: f64, b: f64) f64 {
-    if (@abs(a) > 9007199254740991 or @abs(b) > 9007199254740991) return std.math.nan(f64);
-    const sum = @addWithOverflow(@as(i64, @intFromFloat(a)), @as(i64, @intFromFloat(b)));
-    if (sum[1] != 0 or sum[0] > 9007199254740991 or sum[0] < -9007199254740991) return std.math.nan(f64);
-    return @floatFromInt(sum[0]);
 }

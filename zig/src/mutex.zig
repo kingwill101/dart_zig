@@ -1,17 +1,13 @@
 const std = @import("std");
+const builtin = @import("builtin");
 
-/// Short critical-section lock shared by Zig 0.15 and 0.16.
-/// Never hold this lock while waiting for Dart or performing application I/O.
-pub const Mutex = struct {
-    held: std.atomic.Value(bool) = std.atomic.Value(bool).init(false),
-
-    pub fn lock(self: *Mutex) void {
-        while (self.held.cmpxchgWeak(false, true, .acquire, .monotonic) != null) {
-            std.atomic.spinLoopHint();
-        }
+/// Uses Zig's native synchronization API for each supported compiler version.
+pub const Mutex = if (builtin.single_threaded)
+    struct {
+        pub fn lock(_: *@This()) void {}
+        pub fn unlock(_: *@This()) void {}
     }
-
-    pub fn unlock(self: *Mutex) void {
-        self.held.store(false, .release);
-    }
-};
+else if (builtin.zig_version.minor >= 16)
+    @import("mutex_016.zig").Mutex
+else
+    std.Thread.Mutex;

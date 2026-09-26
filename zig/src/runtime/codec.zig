@@ -1,4 +1,5 @@
 const std = @import("std");
+const protocol = @import("protocol.zig");
 
 /// Explicit little-endian wire codec, independent of native struct layout.
 pub const Writer = struct {
@@ -41,6 +42,28 @@ pub const Writer = struct {
     pub fn string(self: *Writer, value: []const u8) !void {
         if (!std.unicode.utf8ValidateSlice(value)) return error.InvalidUtf8;
         try self.blob(value);
+    }
+
+    /// Encodes a protocol value by walking its Zig fields in declaration order.
+    pub fn encode(self: *Writer, input: anytype) !void {
+        const T = @TypeOf(input);
+        if (T == void) return;
+        if (T == protocol.Text) return self.string(input.bytes);
+        if (T == []const u8) return self.blob(input);
+        switch (@typeInfo(T)) {
+            .int => try self.int(T, input),
+            .bool => try self.boolean(input),
+            .float => switch (@bitSizeOf(T)) {
+                32 => try self.float32(input),
+                64 => try self.float(input),
+                else => @compileError("Unsupported protocol float width"),
+            },
+            .@"struct" => |info| {
+                if (info.is_tuple) @compileError("Tuple protocol values are unsupported");
+                inline for (info.fields) |field| try self.encode(@field(input, field.name));
+            },
+            else => @compileError("Unsupported protocol value type: " ++ @typeName(T)),
+        }
     }
 };
 
@@ -85,5 +108,30 @@ pub const Reader = struct {
     }
     pub fn finish(self: *Reader) !void {
         if (self.offset != self.bytes.len) return error.TrailingBytes;
+    }
+
+    /// Decodes a protocol value using the same field order as [Writer.encode].
+    pub fn decode(self: *Reader, comptime T: type) !T {
+        if (T == protocol.Text) return .{ .bytes = try self.string() };
+        if (T == []const u8) return try self.blob();
+        return switch (@typeInfo(T)) {
+            .int => try self.int(T),
+            .bool => try self.boolean(),
+            .float => switch (@bitSizeOf(T)) {
+                32 => try self.float32(),
+                64 => try self.float(),
+                else => @compileError("Unsupported protocol float width"),
+            },
+            .@"struct" => |info| blk: {
+                if (info.is_tuple) @compileError("Tuple protocol values are unsupported");
+                if (info.fields.len == 0) break :blk .{};
+                var result: T = undefined;
+                inline for (info.fields) |field| {
+                    @field(result, field.name) = try self.decode(field.type);
+                }
+                break :blk result;
+            },
+            else => @compileError("Unsupported protocol value type: " ++ @typeName(T)),
+        };
     }
 };

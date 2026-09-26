@@ -1,5 +1,5 @@
 const std = @import("std");
-const api = @import("../api.zig");
+const api = if (@import("builtin").is_test) @import("api_test.zig") else @import("../api.zig");
 const Mutex = @import("../mutex.zig").Mutex;
 const buffers = @import("buffer.zig");
 const frames = @import("frame.zig");
@@ -7,6 +7,9 @@ const handles = @import("handles.zig");
 const events = @import("event.zig");
 const CancellationToken = @import("cancellation.zig").CancellationToken;
 const Frame = frames.Frame;
+fn isTerminal(kind: frames.Kind) bool {
+    return kind == .result or kind == .stream_end or kind == .failure;
+}
 const Task = struct {
     allocator: std.mem.Allocator,
     route: u32,
@@ -33,6 +36,7 @@ pub const Options = struct {
     bytes: usize = 8 * 1024 * 1024,
     tasks: u32 = 256,
     workers: usize = 1,
+    wake: *const fn (i64) bool = api.wake,
 };
 
 /// Application handlers may execute concurrently when workers > 1.
@@ -46,7 +50,7 @@ pub const Context = struct {
 
     pub fn check(self: *Context) !void {
         if (self.runtime.stopping.load(.acquire)) return error.Closed;
-        try self.task.token.check(events.monotonicNs());
+        try self.task.token.check(self.runtime.clock.monotonicNs());
     }
     pub fn operation(self: *const Context) u32 {
         return self.task.route;
@@ -67,17 +71,13 @@ pub const Context = struct {
         errdefer buffer.release();
         try self.runtime.emit(.{ .id = self.id, .route = route, .kind = kind, .code = code, .buffer = buffer }, self.task);
     }
-    fn awaitCredit(self: *Context) !void {
-        while (true) {
-            const epoch = self.runtime.capacity.epoch();
-            try self.check();
-            if (self.task.credit.cmpxchgStrong(1, 0, .acq_rel, .acquire) == null) return;
-            self.runtime.capacity.waitSince(epoch);
-        }
-    }
     pub fn item(self: *Context, bytes: []const u8) !void {
-        try self.awaitCredit();
-        try self.send(.stream_item, self.task.route, 0, bytes);
+        try self.check();
+        if (self.task.credit.cmpxchgStrong(1, 0, .acq_rel, .acquire) != null) return error.NoCredit;
+        self.send(.stream_item, self.task.route, 0, bytes) catch |err| {
+            self.task.credit.store(1, .release);
+            return err;
+        };
     }
     pub fn signal(self: *Context, route: u32, bytes: []const u8) !void {
         try self.send(.signal, route, 0, bytes);
@@ -94,15 +94,17 @@ pub const Context = struct {
             self.task.finished.store(false, .release);
             return err;
         };
-        self.runtime.tasks.remove(self.id) catch {};
-        self.runtime.notifyCapacity();
     }
     pub fn complete(self: *Context, bytes: []const u8) !void {
         try self.terminal(.result, 0, bytes);
     }
     pub fn end(self: *Context) !void {
-        try self.awaitCredit();
-        try self.terminal(.stream_end, 0, &.{});
+        try self.check();
+        if (self.task.credit.cmpxchgStrong(1, 0, .acq_rel, .acquire) != null) return error.NoCredit;
+        self.terminal(.stream_end, 0, &.{}) catch |err| {
+            self.task.credit.store(1, .release);
+            return err;
+        };
     }
     /// Transfers state ownership to the task. Resume once per production credit.
     /// The callback emits at most one item, or ends the stream, then returns.
@@ -127,17 +129,20 @@ pub const Runtime = struct {
     mutex: Mutex = .{},
     input: frames.Queue,
     output: frames.Queue,
+    pending_output: frames.Queue,
+    regular_output_limit: usize,
     ready: frames.Queue,
     prefer_ready: bool = false,
     tasks: Tasks,
     buffers: *buffers.Pool,
     work: events.Event,
-    capacity: events.Event,
+    clock: events.Clock,
     threads: []std.Thread,
     started: usize = 0,
     exited: std.atomic.Value(usize) = std.atomic.Value(usize).init(0),
     stopping: std.atomic.Value(bool) = std.atomic.Value(bool).init(false),
     port: i64,
+    wake: *const fn (i64) bool,
     wake_pending: bool = false,
     dispatch: Dispatch,
     application: ?*anyopaque,
@@ -155,19 +160,24 @@ pub const Runtime = struct {
         errdefer input.deinit(allocator);
         var output = try frames.Queue.init(allocator, options.messages, options.bytes);
         errdefer output.deinit(allocator);
+        const pending_slots = try std.math.add(usize, options.messages, options.tasks);
+        // Keep a separate, bounded reserve for results when the regular output
+        // queue is full. A reserve proportional to the task count lets queued
+        // payloads grow far beyond the configured byte budget.
+        var pending_output = try frames.Queue.init(allocator, pending_slots, options.bytes);
+        errdefer pending_output.deinit(allocator);
         var ready = try frames.Queue.init(allocator, options.tasks, options.tasks);
         errdefer ready.deinit(allocator);
         var tasks = try Tasks.init(allocator, options.tasks);
         errdefer tasks.deinit();
+        const clock = try events.Clock.init();
         const work = try events.Event.init();
         errdefer work.deinit();
-        const capacity = try events.Event.init();
-        errdefer capacity.deinit();
         const pool = try buffers.Pool.create(allocator, options.messages, options.bytes);
         errdefer pool.close();
         const threads = try allocator.alloc(std.Thread, options.workers);
         errdefer allocator.free(threads);
-        self.* = .{ .allocator = allocator, .input = input, .output = output, .ready = ready, .tasks = tasks, .buffers = pool, .work = work, .capacity = capacity, .threads = threads, .port = port, .dispatch = dispatch, .application = application };
+        self.* = .{ .allocator = allocator, .input = input, .output = output, .pending_output = pending_output, .regular_output_limit = options.messages, .ready = ready, .tasks = tasks, .buffers = pool, .work = work, .clock = clock, .threads = threads, .port = port, .wake = options.wake, .dispatch = dispatch, .application = application };
         errdefer {
             self.stop();
             for (self.threads[0..self.started]) |thread| thread.join();
@@ -181,15 +191,9 @@ pub const Runtime = struct {
 
     fn wakeDartLocked(self: *Runtime) void {
         if (self.wake_pending) return;
-        self.wake_pending = api.wake(self.port);
+        self.wake_pending = self.wake(self.port);
         self.wakes += 1;
         if (!self.wake_pending) self.stop();
-    }
-
-    fn notifyCapacity(self: *Runtime) void {
-        self.mutex.lock();
-        defer self.mutex.unlock();
-        self.wakeDartLocked();
     }
 
     pub fn acknowledge(self: *Runtime) void {
@@ -204,7 +208,7 @@ pub const Runtime = struct {
         if (bytes.len > self.input.max_bytes) return error.TooLarge;
         const task = try self.allocator.create(Task);
         task.* = .{ .allocator = self.allocator, .route = route, .streaming = kind == .stream_start };
-        if (timeout_ns != 0) task.token.deadline_ns = events.monotonicNs() +| timeout_ns;
+        if (timeout_ns != 0) task.token.deadline_ns = self.clock.monotonicNs() +| timeout_ns;
         const id = self.tasks.insert(task) catch |err| {
             task.destroy();
             return err;
@@ -228,7 +232,7 @@ pub const Runtime = struct {
         self.mutex.lock();
         defer self.mutex.unlock();
         if (self.stopping.load(.acquire) or task.token.cancelled.load(.acquire)) return;
-        if (task.scheduled or task.continuation == null or task.credit.load(.acquire) == 0) return;
+        if (task.scheduled or task.finished.load(.acquire) or task.continuation == null or task.credit.load(.acquire) == 0) return;
         const buffer = try self.buffers.copy(&.{});
         errdefer buffer.release();
         try self.ready.put(.{ .id = id, .route = task.route, .kind = .resume_stream, .buffer = buffer });
@@ -257,26 +261,23 @@ pub const Runtime = struct {
 
     fn emit(self: *Runtime, frame: Frame, task: ?*Task) !void {
         if (frame.buffer.bytes.len > self.output.max_bytes) return error.TooLarge;
-        while (true) {
-            const epoch = self.capacity.epoch();
-            if (self.stopping.load(.acquire)) return error.Closed;
-            if (task) |active| try active.token.check(events.monotonicNs());
-            self.mutex.lock();
-            if (self.stopping.load(.acquire)) {
-                self.mutex.unlock();
-                return error.Closed;
-            }
+        if (task) |active| try active.token.check(self.clock.monotonicNs());
+        self.mutex.lock();
+        defer self.mutex.unlock();
+        if (self.stopping.load(.acquire)) return error.Closed;
+        const terminal = isTerminal(frame.kind);
+        if (self.pending_output.count != 0) {
+            if (!terminal and self.pending_output.count >= self.regular_output_limit) return error.Full;
+            try self.pending_output.put(frame);
+        } else {
             self.output.put(frame) catch |err| {
-                self.mutex.unlock();
                 if (err != error.Full) return err;
-                self.capacity.waitSince(epoch);
-                continue;
+                if (!terminal and self.pending_output.count >= self.regular_output_limit) return error.Full;
+                try self.pending_output.put(frame);
             };
-            self.copied_bytes += frame.buffer.bytes.len;
-            self.wakeDartLocked();
-            self.mutex.unlock();
-            return;
         }
+        self.copied_bytes += frame.buffer.bytes.len;
+        self.wakeDartLocked();
     }
 
     /// Nonblocking unsolicited signal; Full leaves the caller's bytes untouched.
@@ -287,6 +288,7 @@ pub const Runtime = struct {
         self.mutex.lock();
         defer self.mutex.unlock();
         if (self.stopping.load(.acquire)) return error.Closed;
+        if (self.pending_output.count != 0) return error.Full;
         try self.output.put(.{ .kind = .signal, .route = route, .buffer = buffer });
         self.copied_bytes += bytes.len;
         self.wakeDartLocked();
@@ -295,13 +297,15 @@ pub const Runtime = struct {
     /// Fills preallocated descriptors; their buffers remain valid until release.
     pub fn poll(self: *Runtime, descriptors: anytype) usize {
         self.mutex.lock();
-        defer self.mutex.unlock();
         var count: usize = 0;
         while (count < descriptors.len) : (count += 1) {
-            const frame = self.output.take() orelse break;
+            const frame = self.output.take() orelse self.pending_output.take() orelse break;
             descriptors[count] = .{ .id = frame.id, .route = frame.route, .kind = @intFromEnum(frame.kind), .code = frame.code, .length = frame.buffer.bytes.len, .data = frame.buffer.bytes.ptr, .owner = frame.buffer };
             self.delivered += 1;
-            self.capacity.signal();
+        }
+        self.mutex.unlock();
+        for (descriptors[0..count]) |frame| {
+            if (isTerminal(@enumFromInt(frame.kind))) self.tasks.remove(frame.id) catch {};
         }
         return count;
     }
@@ -313,15 +317,15 @@ pub const Runtime = struct {
         try self.tasks.remove(id);
         self.mutex.lock();
         self.ready.remove(id);
+        self.output.remove(id);
+        self.pending_output.remove(id);
         self.mutex.unlock();
-        for (0..self.threads.len) |_| self.capacity.signal();
     }
 
     pub fn grant(self: *Runtime, id: u64) !void {
         var lease = try self.tasks.acquire(id);
         defer lease.release();
         lease.value.*.credit.store(1, .release);
-        self.capacity.signal();
         try self.schedule(id, lease.value.*);
     }
 
@@ -355,12 +359,13 @@ pub const Runtime = struct {
                 continue;
             };
             if (message.kind == .resume_stream) {
-                self.mutex.lock();
-                context.task.scheduled = false;
-                self.mutex.unlock();
                 if (context.task.continuation) |resumeStream| {
                     resumeStream(&context, context.task.state.?) catch |err| self.finishError(&context, err);
                 }
+                self.mutex.lock();
+                context.task.scheduled = false;
+                self.mutex.unlock();
+                self.schedule(message.id, context.task) catch |err| self.finishError(&context, err);
                 continue;
             }
             if (message.code != 0) {
@@ -377,18 +382,19 @@ pub const Runtime = struct {
 
     fn finishError(self: *Runtime, context: *Context, err: anyerror) void {
         if (context.task.finished.swap(true, .acq_rel)) return;
-        defer {
+        if (self.stopping.load(.acquire) or context.task.token.cancelled.load(.acquire)) {
             self.tasks.remove(context.id) catch {};
-            self.notifyCapacity();
+            return;
         }
-        if (self.stopping.load(.acquire) or context.task.token.cancelled.load(.acquire)) return;
         const buffer = self.buffers.copy(@errorName(err)) catch {
+            self.tasks.remove(context.id) catch {};
             self.stop();
             return;
         };
         // Deadline failure must still be deliverable after the token expires.
         self.emit(.{ .id = context.id, .route = context.operation(), .kind = .failure, .code = if (err == error.DeadlineExceeded) 2 else 1, .buffer = buffer }, null) catch {
             buffer.release();
+            self.tasks.remove(context.id) catch {};
             self.stop();
         };
     }
@@ -408,10 +414,9 @@ pub const Runtime = struct {
 
     pub fn stop(self: *Runtime) void {
         if (self.stopping.swap(true, .acq_rel)) return;
-        _ = api.wake(self.port);
+        _ = self.wake(self.port);
         for (0..self.threads.len) |_| {
             self.work.signal();
-            self.capacity.signal();
         }
     }
 
@@ -424,9 +429,9 @@ pub const Runtime = struct {
         self.tasks.deinit();
         self.input.deinit(self.allocator);
         self.output.deinit(self.allocator);
+        self.pending_output.deinit(self.allocator);
         self.ready.deinit(self.allocator);
         self.work.deinit();
-        self.capacity.deinit();
         self.buffers.close();
         self.allocator.free(self.threads);
         self.allocator.destroy(self);

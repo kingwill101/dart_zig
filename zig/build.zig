@@ -3,6 +3,7 @@ const std = @import("std");
 pub fn build(b: *std.Build) void {
     const target = b.standardTargetOptions(.{});
     const optimize = b.standardOptimizeOption(.{});
+
     const module = b.addModule("dart_zig", .{
         .root_source_file = b.path("src/root.zig"),
         .target = target,
@@ -11,41 +12,27 @@ pub fn build(b: *std.Build) void {
         .pic = true,
     });
     module.addIncludePath(b.path("vendor/dart"));
-    module.addIncludePath(b.path("src/runtime"));
-    module.addCSourceFile(.{ .file = b.path("src/runtime/event.c"), .flags = &.{} });
     module.addCSourceFile(.{ .file = b.path("vendor/dart/dart_api_dl.c"), .flags = &.{} });
 
-    const exports = b.createModule(.{
-        .root_source_file = b.path("src/exports.zig"),
+    // Compile the reusable runtime itself without inventing an application.
+    const core_object = b.addObject(.{ .name = "dart_zig_core", .root_module = module });
+    b.getInstallStep().dependOn(&core_object.step);
+
+    // Applications use the same public runtime module with a different root
+    // file when they compile their WebAssembly dispatcher.
+    _ = b.addModule("dart_zig_web", .{
+        .root_source_file = b.path("src/root_web.zig"),
         .target = target,
         .optimize = optimize,
-        .link_libc = true,
-        .pic = true,
+        .single_threaded = true,
     });
-    exports.addImport("dart_zig", module);
-    const models = b.createModule(.{
-        .root_source_file = b.path("src/generated/models.zig"),
-        .target = target,
-        .optimize = optimize,
-    });
-    models.addImport("dart_zig", module);
-    const application = b.createModule(.{
-        .root_source_file = b.path("src/application.zig"),
-        .target = target,
-        .optimize = optimize,
-    });
-    application.addImport("dart_zig", module);
-    application.addImport("models", models);
-    exports.addImport("application", application);
-    exports.addImport("models", models);
-    // Example exports are deliberately separate from the reusable module.
-    const demo = b.createModule(.{
-        .root_source_file = b.path("src/demo.zig"),
+
+    const test_module = b.createModule(.{
+        .root_source_file = b.path("src/tests.zig"),
         .target = target,
         .optimize = optimize,
     });
-    demo.addImport("dart_zig", module);
-    exports.addImport("demo", demo);
-    const lib = b.addLibrary(.{ .name = "dart_zig", .linkage = .dynamic, .root_module = exports });
-    b.installArtifact(lib);
+    const tests = b.addTest(.{ .root_module = test_module });
+    const test_step = b.step("test", "Run Zig runtime tests");
+    test_step.dependOn(&b.addRunArtifact(tests).step);
 }

@@ -1,10 +1,7 @@
 const std = @import("std");
 const dz = @import("dart_zig");
+const app = @import("application");
 const allocator = std.heap.c_allocator;
-
-comptime {
-    _ = @import("demo");
-}
 
 // Status ABI: 0 success, 1 empty/full, 2 closed, 3 invalid/stale,
 // 4 allocation failure, 5 payload too large.
@@ -92,10 +89,15 @@ export fn dz_protocol_version() u32 {
     return dz.frames.protocol_version;
 }
 
+fn applicationDispatch(context: *dz.Context, kind: dz.frames.Kind, route: u32, bytes: []const u8) !void {
+    if (comptime @hasDecl(app, "dispatch")) return app.dispatch(context, kind, route, bytes);
+    return dz.handlers.dispatch(app, allocator, context, kind, route, bytes);
+}
+
 export fn dz_runtime_create(port: i64, count: usize, bytes: usize, tasks: u32, workers: usize) ?*dz.Runtime {
-    const app = @import("application").Application.create() catch return null;
-    return dz.Runtime.create(allocator, port, .{ .messages = count, .bytes = bytes, .tasks = tasks, .workers = workers }, @import("application").dispatch, app) catch {
-        app.destroy();
+    const application = if (comptime @hasDecl(app, "Application")) app.Application.create() catch return null else null;
+    return dz.Runtime.create(allocator, port, .{ .messages = count, .bytes = bytes, .tasks = tasks, .workers = workers }, applicationDispatch, application) catch {
+        if (comptime @hasDecl(app, "Application")) application.destroy();
         return null;
     };
 }
@@ -106,9 +108,11 @@ export fn dz_runtime_stopped(runtime: *dz.Runtime) bool {
     return runtime.stopping.load(.acquire);
 }
 export fn dz_runtime_destroy(runtime: *dz.Runtime) void {
-    const app: *@import("application").Application = @ptrCast(@alignCast(runtime.application.?));
-    runtime.destroy();
-    app.destroy();
+    if (comptime @hasDecl(app, "Application")) {
+        const application: *app.Application = @ptrCast(@alignCast(runtime.application.?));
+        runtime.destroy();
+        application.destroy();
+    } else runtime.destroy();
 }
 export fn dz_runtime_acknowledge(runtime: *dz.Runtime) void {
     runtime.acknowledge();
@@ -140,16 +144,6 @@ export fn dz_buffer_retain(owner: *anyopaque) void {
 export fn dz_buffer_release(owner: *anyopaque) void {
     const buffer: *dz.Buffer = @ptrCast(@alignCast(owner));
     buffer.release();
-}
-export fn dz_sync_sum(a: i64, b: i64, output: *i64) u8 {
-    const sum = @addWithOverflow(a, b);
-    if (sum[1] != 0) return 3;
-    output.* = sum[0];
-    return 0;
-}
-
-export fn dz_schema_fingerprint() u32 {
-    return @import("models").schema_fingerprint;
 }
 export fn dz_runtime_grant(runtime: *dz.Runtime, id: u64) u8 {
     runtime.grant(id) catch |err| return status(err);
