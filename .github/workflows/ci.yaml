@@ -1,0 +1,101 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  dart:
+    name: Dart and Zig ${{ matrix.zig-version }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        zig-version: [0.15.2, 0.16.0]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Dart
+        uses: dart-lang/setup-dart@v1
+        with:
+          sdk: stable
+
+      - name: Set up Zig
+        uses: mlugg/setup-zig@v2
+        with:
+          version: ${{ matrix.zig-version }}
+
+      - name: Set up Node for the WebAssembly runners
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Install package and console example dependencies
+        run: |
+          dart pub get
+          for project in example/*; do
+            case "$project" in
+              *_flutter_example) continue ;;
+            esac
+            (cd "$project" && dart pub get)
+          done
+
+      - name: Check Dart formatting
+        run: dart format --output=none --set-exit-if-changed bin lib hook tool test
+
+      - name: Run Dart, Zig, native, and WebAssembly checks
+        run: sh tool/verify.sh
+
+  flutter:
+    name: Flutter ${{ matrix.example }} and Zig ${{ matrix.zig-version }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        zig-version: [0.15.2, 0.16.0]
+        example:
+          - fractal_flutter_example
+          - particle_stream_flutter_example
+          - typed_signal_flutter_example
+    defaults:
+      run:
+        working-directory: example/${{ matrix.example }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Flutter and Dart
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Set up Zig
+        uses: mlugg/setup-zig@v2
+        with:
+          version: ${{ matrix.zig-version }}
+
+      - name: Install Linux desktop build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y clang cmake ninja-build pkg-config libgtk-3-dev liblzma-dev
+
+      - name: Install Flutter dependencies
+        run: flutter pub get
+
+      - name: Regenerate bindings and WebAssembly asset
+        run: dart run dart_zig:dart_zig generate
+
+      - name: Analyze Flutter example
+        run: flutter analyze
+
+      - name: Build Flutter for Web
+        run: flutter build web
+
+      - name: Build Flutter for Linux
+        run: flutter build linux
