@@ -1,0 +1,10 @@
+.{
+    .name = .lifecycle_example,
+    .fingerprint = 0xc2d745bc4e3b6312,
+    .version = "0.1.0",
+    .minimum_zig_version = "0.15.2",
+    .dependencies = .{
+        .dart_zig = .{ .path = "../../../zig" },
+    },
+    .paths = .{ "build.zig", "build.zig.zon", "src" },
+}
