@@ -4,6 +4,7 @@ import 'dart:isolate';
 import 'package:dart_zig/src/generator/backend_generator.dart';
 import 'package:dart_zig/src/generator/project_initializer.dart';
 import 'package:dart_zig/src/generator/protocol_generator.dart';
+import 'package:dart_zig/src/generator/public_entrypoint_generator.dart';
 import 'package:native_toolchain_zig/native_toolchain_zig.dart';
 
 /// Initializes a project or generates its Dart bindings from Zig exports.
@@ -71,7 +72,48 @@ Future<void> main(List<String> arguments) async {
       functions: sharedBindings.functions,
     );
     await generateProtocol(project: project, sharedZigDir: sharedZigDir);
+    await generatePublicEntrypoint(project: project, packageName: name);
+    await _buildWebAsset(project: project, packageName: name);
   }
+}
+
+Future<void> _buildWebAsset({
+  required Directory project,
+  required String packageName,
+}) async {
+  if (!Directory('${project.path}/web').existsSync() ||
+      !File('${project.path}/zig/build.zig').existsSync()) {
+    return;
+  }
+
+  const prefix = 'build/wasm';
+  final arguments = [
+    'build',
+    'wasm',
+    '--build-file',
+    'zig/build.zig',
+    '--prefix',
+    prefix,
+    '-Doptimize=ReleaseSafe',
+  ];
+  final result = await Process.run(
+    'zig',
+    arguments,
+    workingDirectory: project.path,
+  );
+  if (result.exitCode != 0) {
+    throw ProcessException(
+      'zig',
+      arguments,
+      '${result.stdout}${result.stderr}',
+      result.exitCode,
+    );
+  }
+
+  final source = File('${project.path}/$prefix/bin/$packageName.wasm');
+  final output = File('${project.path}/web/$packageName.wasm');
+  await output.writeAsBytes(await source.readAsBytes());
+  stdout.writeln('Wrote ${output.path}');
 }
 
 Future<GeneratedBindingsResult> _generateFfi({
