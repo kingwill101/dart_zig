@@ -1,7 +1,7 @@
 #!/bin/sh
 set -eu
 cd "$(dirname "$0")/.."
-dart analyze lib bin hook tool test
+dart analyze lib bin tool test
 dart test
 zig build --build-file zig/build.zig
 zig build --build-file zig/build.zig test

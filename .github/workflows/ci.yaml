@@ -47,7 +47,7 @@ jobs:
           done
 
       - name: Check Dart formatting
-        run: dart format --output=none --set-exit-if-changed bin lib hook tool test
+        run: dart format --output=none --set-exit-if-changed bin lib tool test
 
       - name: Run Dart, Zig, native, and WebAssembly checks
         run: sh tool/verify.sh
