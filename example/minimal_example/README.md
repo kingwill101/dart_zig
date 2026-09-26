@@ -15,3 +15,16 @@ dart run bin/main.dart
 The expected output is `20 + 22 = 42`. After changing the Zig export, rerun the
 binding generator. The build hook compiles the example's native asset when Dart
 runs it.
+
+## Follow the code
+
+`zig/src/exports.zig` exposes `export fn add(a: i64, b: i64) i64`. The
+`native_toolchain_zig` command writes `lib/src/ffi.g.dart`, and
+`lib/minimal_example.dart` reexports its generated `add` function.
+`bin/main.dart` calls that function synchronously.
+
+This is the smallest path for a direct Zig function. There is no
+`NativeSession`, route, stream, or codec. The package's `hook/build.dart`
+compiles the Zig asset when Dart runs the application. If you need asynchronous
+calls, signals, or streams, start with [the calls example](../calls_example/README.md)
+and its generated session API.

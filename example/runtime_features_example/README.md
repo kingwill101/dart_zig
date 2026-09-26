@@ -10,9 +10,14 @@ From this directory:
 
 ```sh
 dart pub get
+dart run dart_zig:dart_zig generate
 dart run bin/main.dart
 dart run demo/toolkit.dart
 ```
+
+`bin/main.dart` runs the portable feature sequence and ends with
+`All portable examples completed.` Run one `demo/*.dart` file directly when
+you want to focus on a single API.
 
 To regenerate FFI bindings after changing native exports:
 
@@ -24,6 +29,16 @@ The command uses `native_toolchain_zig` for FFI declarations. The typed
 `FeatureApi` and Dart codecs are application source in `lib/src/models.dart`;
 their Zig counterparts are in `zig/src/models.zig`. Keep their wire formats
 aligned when editing either side.
+
+## Follow the code
+
+`lib/runtime_features_example.dart` exports the generated session entrypoint
+and the application's models. `demo/run_all.dart` invokes the portable demos
+in order; each file shows one consumer pattern and its cleanup. The Zig
+`application.zig` dispatcher implements the operations declared in
+`zig/src/models.zig`. This example deliberately keeps a larger, hand-authored
+protocol to exercise runtime boundaries; the smaller examples show the
+generated handler route used for ordinary applications.
 
 | Entry point | Demonstrates |
 | --- | --- |
