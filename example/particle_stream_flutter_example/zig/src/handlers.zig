@@ -1,4 +1,7 @@
 const std = @import("std");
+const builtin = @import("builtin");
+
+const allocator = if (builtin.target.cpu.arch == .wasm32) std.heap.wasm_allocator else std.heap.c_allocator;
 
 pub const image_width = 160;
 pub const image_height = 90;
@@ -66,12 +69,16 @@ pub const Simulation = struct {
             total_speed += @as(f64, @floatCast(@sqrt(particle.vx * particle.vx + particle.vy * particle.vy)));
         }
 
+        if (self.rgba.len != self.bins.len * 4) return error.InvalidFrameBuffer;
         for (self.bins, 0..) |count, index| {
-            const heat = @min(@as(u32, count) * 16, 255);
+            const heat: u32 = @min(@as(u32, count) * 16, 255);
+            const red: u32 = if (heat < 128) heat / 5 else @min(255, (heat - 128) * 2 + 25);
+            const green: u32 = @min(255, 18 + heat);
+            const blue: u32 = @min(255, 45 + heat * 2 / 3);
             const offset = index * 4;
-            self.rgba[offset] = @intCast(if (heat < 128) heat / 5 else @min(255, (heat - 128) * 2 + 25));
-            self.rgba[offset + 1] = @intCast(@min(255, 18 + heat));
-            self.rgba[offset + 2] = @intCast(@min(255, 45 + heat * 2 / 3));
+            self.rgba[offset] = @intCast(red);
+            self.rgba[offset + 1] = @intCast(green);
+            self.rgba[offset + 2] = @intCast(blue);
             self.rgba[offset + 3] = 255;
         }
 
@@ -86,9 +93,9 @@ pub const Simulation = struct {
     }
 
     pub fn deinit(self: *Simulation) void {
-        std.heap.c_allocator.free(self.rgba);
-        std.heap.c_allocator.free(self.bins);
-        std.heap.c_allocator.free(self.particles);
+        allocator.free(self.rgba);
+        allocator.free(self.bins);
+        allocator.free(self.particles);
         _ = live_native_bytes.fetchSub(self.allocated_bytes, .acq_rel);
     }
 };
@@ -96,7 +103,6 @@ pub const Simulation = struct {
 /// Keeps particle state in Zig and streams one heatmap for each Dart credit.
 pub fn simulate(request: SimulateRequest) !Simulation {
     if (request.particleCount < 1000 or request.particleCount > 250_000) return error.InvalidParticleCount;
-    const allocator = std.heap.c_allocator;
     const particles = try allocator.alloc(Particle, request.particleCount);
     errdefer allocator.free(particles);
     const bins = try allocator.alloc(u16, image_width * image_height);

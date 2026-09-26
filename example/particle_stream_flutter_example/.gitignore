@@ -34,6 +34,7 @@ migrate_working_dir/
 /coverage/
 /zig/.zig-cache/
 /zig/zig-out/
+/web/*.wasm
 
 # Symbolication related
 app.*.symbols

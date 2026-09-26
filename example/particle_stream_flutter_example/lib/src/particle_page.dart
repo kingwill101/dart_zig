@@ -1,13 +1,13 @@
 import 'dart:async';
-import 'dart:io' show ProcessInfo;
 import 'dart:typed_data';
 import 'dart:ui' as ui;
 
-import 'package:dart_zig/dart_zig.dart';
 import 'package:flutter/material.dart';
+import 'package:particle_stream_flutter_example/src/generated/generated.dart';
 
-import 'generated/api.g.dart';
-import 'generated/runtime_bindings.g.dart' show createSession;
+import 'process_rss_native.dart'
+    if (dart.library.js_interop) 'process_rss_web.dart'
+    as process_rss;
 
 const _imageWidth = 160;
 const _imageHeight = 90;
@@ -93,7 +93,7 @@ class _ParticlePageState extends State<ParticlePage> {
           .listen(
             (frame) {
               // Pausing before the synchronous stream callback returns prevents
-              // the session from granting another native production credit.
+              // the session from granting another production credit.
               subscription.pause(_presentFrame(frame, generation));
             },
             onError: (Object error, StackTrace stack) => _reportError(error),
@@ -122,7 +122,7 @@ class _ParticlePageState extends State<ParticlePage> {
     final work = Stopwatch()..start();
     try {
       if (frame.rgba.length != _imageBytes) {
-        throw StateError('Native stream returned an invalid heatmap');
+        throw StateError('Zig stream returned an invalid heatmap');
       }
       final image = await _decode(frame.rgba);
       if (!mounted || generation != _generation) {
@@ -139,7 +139,9 @@ class _ParticlePageState extends State<ParticlePage> {
         _sequence = frame.sequence;
         _collisions = frame.collisions;
         _liveNativeBytes = frame.liveNativeBytes;
-        if (frame.sequence % 30 == 1) _processRss = ProcessInfo.currentRss;
+        if (frame.sequence % 30 == 1) {
+          _processRss = process_rss.currentProcessRss();
+        }
         _meanSpeed = frame.meanSpeed;
         if (_lastPresentedUs != 0) {
           _fps = _fps == 0 ? instantFps : _fps * 0.8 + instantFps * 0.2;
@@ -304,7 +306,7 @@ class _ParticlePageState extends State<ParticlePage> {
                     _subscription == null
                         ? 'Stopped'
                         : _paused
-                        ? 'Paused · native state retained'
+                        ? 'Paused · Zig state retained'
                         : 'Live · frame $_sequence',
                     style: theme.textTheme.titleMedium,
                   ),
@@ -320,7 +322,7 @@ class _ParticlePageState extends State<ParticlePage> {
                     '${(_activeCount / 1000).toStringAsFixed(0)}k',
                   ),
                   _stat(
-                    'Native state',
+                    'Zig state',
                     '${(_liveNativeBytes / 1048576).toStringAsFixed(2)} MiB',
                   ),
                   if (_processRss > 0)
@@ -380,7 +382,7 @@ class _ParticlePageState extends State<ParticlePage> {
           Text('Simulation', style: theme.textTheme.titleLarge),
           const SizedBox(height: 18),
           Text(
-            'Native particles · ${(_particleCount / 1000).round()}k',
+            'Zig particles · ${(_particleCount / 1000).round()}k',
             style: theme.textTheme.labelLarge,
           ),
           Slider(
@@ -434,14 +436,14 @@ class _ParticlePageState extends State<ParticlePage> {
           ),
           const SizedBox(height: 18),
           Text(
-            'Particle positions and velocities stay in Zig. Only the heatmap and counters cross FFI. Pausing the Dart subscription withholds native stream credit, so a worker does not sleep between frames.',
+            'Particle positions and velocities stay in Zig. Only the heatmap and counters cross the transport. Pausing the Dart subscription withholds stream credit, so Zig does not work between frames.',
             style: theme.textTheme.bodySmall?.copyWith(
               color: theme.colorScheme.onSurfaceVariant,
             ),
           ),
           const SizedBox(height: 10),
           Text(
-            'Native state counts live simulation buffers. Process RSS also includes Flutter, Dart, libraries, and heap pages retained for reuse, so it may stay high after reducing particles.',
+            'Zig state counts live simulation buffers. On native platforms, process RSS also includes Flutter, Dart, libraries, and heap pages retained for reuse.',
             style: theme.textTheme.bodySmall?.copyWith(
               color: theme.colorScheme.onSurfaceVariant,
             ),

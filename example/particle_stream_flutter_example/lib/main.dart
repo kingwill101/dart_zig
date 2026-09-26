@@ -1,8 +1,13 @@
 import 'package:flutter/material.dart';
+import 'package:particle_stream_flutter_example/src/generated/generated.dart';
 
 import 'src/particle_page.dart';
 
-void main() => runApp(const ParticleStreamApp());
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await initializeZig();
+  runApp(const ParticleStreamApp());
+}
 
 class ParticleStreamApp extends StatelessWidget {
   const ParticleStreamApp({super.key});
