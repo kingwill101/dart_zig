@@ -1,0 +1,24 @@
+import 'package:dart_zig/dart_zig.dart' as dz;
+
+/// Opens a session using the Wasm module selected by `initializeZig`.
+dz.NativeSession createSession({
+  dz.DiagnosticSink? onDiagnostic,
+  dz.SessionTransport? transport,
+  Future<void> Function()? stopExternal,
+  int maxPending = 256,
+  int maxBytes = 8 * 1024 * 1024,
+  int? maxPendingBytes,
+  int queueCapacity = 256,
+  int workers = 1,
+  int batchSize = 32,
+}) => dz.NativeSession(
+  onDiagnostic: onDiagnostic,
+  transport: transport,
+  stopExternal: stopExternal,
+  maxPending: maxPending,
+  maxBytes: maxBytes,
+  maxPendingBytes: maxPendingBytes,
+  queueCapacity: queueCapacity,
+  workers: workers,
+  batchSize: batchSize,
+);

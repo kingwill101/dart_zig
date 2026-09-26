@@ -1,0 +1,10 @@
+.{
+    .name = .runtime_features_example,
+    .fingerprint = 0x1c3288baf940a599,
+    .version = "0.1.0",
+    .minimum_zig_version = "0.15.2",
+    .dependencies = .{
+        .dart_zig = .{ .path = "../../../zig" },
+    },
+    .paths = .{ "build.zig", "build_web.zig", "build.zig.zon", "src" },
+}
