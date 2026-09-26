@@ -49,7 +49,9 @@ final class SignalEndpoint<T> {
         }
         try {
           final reader = BinaryReader(event.buffer.view);
-          final message = codec.decode(reader.bytes());
+          // A custom decoder may return views into its input. Keep those views
+          // independent of the native frame, which is released below.
+          final message = codec.decode(Uint8List.fromList(reader.bytes()));
           final bytes = reader.bytes();
           reader.finish();
           final start = bytes.offsetInBytes - event.buffer.view.offsetInBytes;
@@ -69,7 +71,7 @@ final class SignalEndpoint<T> {
         }
       },
       onError: (Object error, StackTrace stack) {
-        _errors.add(error);
+        if (!_closed) _errors.add(error);
       },
     );
     _failureSubscription = session.signalErrors

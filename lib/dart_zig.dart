@@ -1,26 +1,25 @@
-/// General Dart/Zig calls, signals, streams, callbacks, and native ownership.
+/// Dart/Zig runtime primitives for calls, signals, streams, callbacks, and
+/// native ownership.
 ///
-/// Create a [NativeSession] and use [GeneratedApi] for the bundled application's
-/// typed calls, signals, streams, and callbacks. Custom applications generate
-/// their own facade and supply a [RuntimeBindings] adapter for their native asset.
+/// The CLI-generated `createSession()` factory connects a [NativeSession] to
+/// your application's native asset. `dart_zig generate` can create typed
+/// endpoints and codecs from public Zig handlers or route declarations.
 ///
 /// Always await [NativeSession.close]. Dispose [NativeBuffer] results explicitly;
 /// their borrowed views depend on the buffer remaining reachable and undisposed.
 /// [NativeBridge] exposes the separate lower-level native request/reply transport.
 ///
-/// {@example /bin/toolkit.dart#session-setup}
+/// {@example /example/runtime_features_example/demo/toolkit.dart#session-setup}
 library;
 
 export 'src/bridge.dart' if (dart.library.js_interop) 'src/bridge_web.dart';
 export 'src/request.dart';
 export 'src/codec.dart';
+export 'src/endpoints.dart';
+export 'src/callbacks.dart';
 export 'src/runtime_error.dart';
 export 'src/session.dart';
-export 'src/generated/models.g.dart';
-export 'src/native_object.dart';
 export 'src/native_buffer.dart';
-export 'src/generated/runtime_bindings.g.dart'
-    if (dart.library.js_interop) 'src/web_bindings.dart';
 export 'src/transport_native.dart'
     if (dart.library.js_interop) 'src/transport_web.dart'
     show initializeZig;

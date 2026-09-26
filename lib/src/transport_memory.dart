@@ -19,11 +19,10 @@ typedef MemoryHandler = FutureOr<void> Function(
 
 /// Bounded in-process implementation of the session protocol.
 ///
-/// Supply the generated schema fingerprint and application behavior. This is an
-/// injectable transport for examples, previews, and fakes, not a Zig emulator.
+/// Supply application behavior for examples, previews, and fakes.
+/// This transport does not emulate Zig.
 final class MemoryTransport implements SessionTransport {
   MemoryTransport({
-    required this.schemaFingerprint,
     required this.handler,
     this.maxMessages = 256,
     this.maxBytes = 8 * 1024 * 1024,
@@ -36,9 +35,11 @@ final class MemoryTransport implements SessionTransport {
   final MemoryHandler handler;
   final int maxMessages, maxBytes, maxTasks;
   @override
-  final int schemaFingerprint;
-  @override
   int get protocolVersion => 2;
+  @override
+  int get liveBuffers => 0;
+  @override
+  int get liveBufferBytes => 0;
   @override
   void Function()? onWake;
   final _tasks = <int, MemoryContext>{};

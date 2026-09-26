@@ -1,7 +1,7 @@
 import 'dart:ffi';
 import 'dart:typed_data';
 
-import 'generated/runtime_bindings.g.dart';
+import 'runtime_bindings.dart';
 
 /// An owned reference to native bytes, independent of the session lifetime.
 ///
@@ -17,8 +17,8 @@ final class NativeBuffer implements Finalizable {
     this._owner,
     this._data,
     this.length, {
-    this.bindings = const GeneratedRuntimeBindings(),
-  }) {
+    required RuntimeBindings bindings,
+  }) : bindings = bindings {
     bindings.bufferFinalizer.attach(
       this,
       _owner,
@@ -27,21 +27,23 @@ final class NativeBuffer implements Finalizable {
     );
   }
 
-  /// Native asset responsible for releasing this allocation.
+  /// Creates a Dart-owned copy without a native asset.
   NativeBuffer.fromBytes(Uint8List bytes)
-    : bindings = const GeneratedRuntimeBindings(),
+    : bindings = null,
       _owner = nullptr,
       _data = nullptr,
       length = bytes.length,
       _managed = Uint8List.fromList(bytes);
   NativeBuffer._managed(Uint8List bytes)
-    : bindings = const GeneratedRuntimeBindings(),
+    : bindings = null,
       _owner = nullptr,
       _data = nullptr,
       length = bytes.length,
       _managed = bytes;
   Uint8List? _managed;
-  final RuntimeBindings bindings;
+
+  /// Native asset responsible for releasing this allocation, if any.
+  final RuntimeBindings? bindings;
   final Pointer<Void> _owner;
   final Pointer<Uint8> _data;
 
@@ -59,8 +61,8 @@ final class NativeBuffer implements Finalizable {
   NativeBuffer retain() {
     if (_disposed) throw StateError('Native buffer is disposed');
     if (_managed != null) return NativeBuffer._managed(_managed!);
-    bindings.dz_buffer_retain(_owner);
-    return NativeBuffer.fromOwned(_owner, _data, length, bindings: bindings);
+    bindings!.dz_buffer_retain(_owner);
+    return NativeBuffer.fromOwned(_owner, _data, length, bindings: bindings!);
   }
 
   /// Retains a subrange without copying. It keeps the entire allocation alive.
@@ -73,12 +75,12 @@ final class NativeBuffer implements Finalizable {
         Uint8List.sublistView(_managed!, start, stop),
       );
     }
-    bindings.dz_buffer_retain(_owner);
+    bindings!.dz_buffer_retain(_owner);
     return NativeBuffer.fromOwned(
       _owner,
       _data + start,
       stop - start,
-      bindings: bindings,
+      bindings: bindings!,
     );
   }
 
@@ -100,7 +102,7 @@ final class NativeBuffer implements Finalizable {
       _managed = null;
       return;
     }
-    bindings.bufferFinalizer.detach(this);
-    bindings.dz_buffer_release(_owner);
+    bindings!.bufferFinalizer.detach(this);
+    bindings!.dz_buffer_release(_owner);
   }
 }

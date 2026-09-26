@@ -243,13 +243,20 @@ final class BinaryReader {
   }
 }
 
-/// Model-specific conversion generated from the shared schema.
-abstract interface class BinaryCodec<T> {
+/// Application-defined encoding of a complete message.
+abstract interface class MessageEncoder<T> {
   /// Encodes [value] into independently owned bytes.
   Uint8List encode(T value);
+}
 
+/// Application-defined decoding of a complete message.
+abstract interface class MessageDecoder<T> {
   /// Decodes one complete message; byte fields may borrow [bytes].
   ///
   /// Invalid input throws [FormatException].
   T decode(Uint8List bytes);
 }
+
+/// A message format used in both directions, such as a signal endpoint.
+abstract interface class BinaryCodec<T>
+    implements MessageEncoder<T>, MessageDecoder<T> {}

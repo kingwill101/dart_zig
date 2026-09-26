@@ -86,10 +86,10 @@ final class SessionStats {
 
 /// One typed-event transport frame; payload bytes are owned by Dart.
 final class NativeSignal {
-  /// Creates an event carrying a schema route and a Dart-owned payload.
+  /// Creates an event carrying an application route and Dart-owned payload.
   const NativeSignal(this.route, this.bytes);
 
-  /// Application signal identifier, used by generated typed subscriptions.
+  /// Application signal identifier, used by typed subscriptions.
   final int route;
 
   /// Payload shared among subscribers; treat it as read-only.
@@ -123,8 +123,8 @@ final class NativeLog {
 /// Internal transport state for one admitted or waiting call.
 ///
 /// @nodoc
-final class PendingCall {
-  PendingCall(this.route);
+final class _PendingCall {
+  _PendingCall(this.route);
   final int route;
   final completer = Completer<Uint8List>();
   int? id;
@@ -145,13 +145,15 @@ final class PendingCall {
 /// Explicitly close the session. Application handlers run on native worker threads.
 /// Each session owns its native objects and callbacks; they cannot cross sessions.
 ///
-/// {@example /bin/toolkit.dart#session-setup}
+/// {@example /example/runtime_features_example/demo/toolkit.dart#session-setup}
 final class NativeSession {
-  /// Creates a native worker pool and a Dart notification port.
+  /// Creates a session using its application's native asset or an injected transport.
   ///
   /// [workers] must be between 1 and 64; [batchSize] between 1 and 1024.
   /// [queueCapacity] limits frames in each native queue. [maxBytes] limits
-  /// queued payload bytes per direction and each submitted payload.
+  /// queued input bytes, regular output bytes, and each submitted payload.
+  /// Native results have one additional [maxBytes] pending-output reserve for
+  /// completion while Dart drains the regular output queue.
   /// [maxPendingBytes] defaults to [maxBytes]. All limits must be positive.
   ///
   /// Throws [ArgumentError] for invalid limits and [NativeException] if
@@ -220,6 +222,8 @@ final class NativeSession {
   }
 
   /// Generated adapter for this application's native asset.
+  ///
+  /// Required on the Dart VM unless a transport is supplied.
   final Object? bindings;
 
   /// Stops and joins application-owned native producers before storage is freed.
@@ -229,7 +233,8 @@ final class NativeSession {
   /// Maximum outstanding calls, including calls waiting for admission.
   final int maxPending;
 
-  /// Native queued-byte budget per direction and maximum individual payload.
+  /// Native queued-byte budget for input and each output queue, and maximum
+  /// individual payload. Native output has a second, equally sized reserve.
   final int maxBytes;
 
   /// Budget for Dart payload snapshots awaiting native admission.
@@ -248,8 +253,8 @@ final class NativeSession {
 
   /// Releases host registrations before runtime storage is freed.
   final CleanupScope cleanup = CleanupScope();
-  final _pending = <int, PendingCall>{};
-  final _active = <PendingCall>{};
+  final _pending = <int, _PendingCall>{};
+  final _active = <_PendingCall>{};
   final _callbacks = <int, FutureOr<Uint8List> Function(Uint8List)>{};
   int _nextCallback = 1;
   final _signals = SignalBus<NativeSignal>(
@@ -275,7 +280,7 @@ final class NativeSession {
   /// 64 frames or 1 MiB receives `signal_overflow` and closes. Other listeners
   /// continue. Payloads are shared; treat them as read-only. Keep handlers short.
   ///
-  /// {@example /bin/toolkit.dart#typed-signals}
+  /// {@example /example/runtime_features_example/demo/toolkit.dart#typed-signals}
   Stream<NativeSignal> get signals => _signals.stream;
 
   /// Whether shutdown has started; native cleanup may still be in progress.
@@ -301,13 +306,11 @@ final class NativeSession {
         return NativeException('signal_failed', message, operation: route);
       });
 
-  /// Default native asset allocations, including pooled and leased buffers.
-  ///
-  /// Custom adapters expose their own counters through [bindings].
-  static int get liveBuffers => platform.liveBuffers;
+  /// Live buffers in this session's native asset or transport.
+  int get liveBuffers => _transport.liveBuffers;
 
-  /// Allocated buffer capacity in the default native asset, including its pool.
-  static int get liveBufferBytes => platform.liveBufferBytes;
+  /// Allocated buffer capacity in this session's native asset or transport.
+  int get liveBufferBytes => _transport.liveBufferBytes;
 
   /// A snapshot of transport activity and queue occupancy.
   ///
@@ -427,7 +430,7 @@ final class NativeSession {
   /// [NativeBuffer] even after this session closes. The input still copies;
   /// only the final result payload copy into Dart memory is avoided.
   ///
-  /// {@example /bin/toolkit.dart#owned-buffer}
+  /// {@example /example/runtime_features_example/demo/toolkit.dart#owned-buffer}
   NativeBufferCall callBuffer(int route, Uint8List bytes, {Duration? timeout}) {
     final pending = _begin(route, bytes, timeout: timeout, ownedBuffer: true);
     return NativeBufferCall(
@@ -436,7 +439,7 @@ final class NativeSession {
     );
   }
 
-  PendingCall _begin(
+  _PendingCall _begin(
     int route,
     Uint8List bytes, {
     Duration? timeout,
@@ -466,7 +469,7 @@ final class NativeSession {
         'Pending Dart payload budget exceeded',
       );
     }
-    final pending = PendingCall(route)
+    final pending = _PendingCall(route)
       ..timeout = timeout
       ..stream = stream
       ..input = Uint8List.fromList(bytes);
@@ -500,10 +503,10 @@ final class NativeSession {
   /// Continuation-based producers release their worker while paused. Errors are delivered on the
   /// stream, except calling this method on a closed session throws immediately.
   ///
-  /// {@example /bin/toolkit.dart#typed-stream}
+  /// {@example /example/runtime_features_example/demo/toolkit.dart#typed-stream}
   Stream<Uint8List> stream(int route, Uint8List bytes, {Duration? timeout}) {
     _ensureOpen();
-    PendingCall? pending;
+    _PendingCall? pending;
     late StreamController<Uint8List> controller;
     controller = StreamController<Uint8List>(
       sync: true,
@@ -544,7 +547,7 @@ final class NativeSession {
     return controller.stream;
   }
 
-  void _grant(PendingCall pending) {
+  void _grant(_PendingCall pending) {
     if (_closed ||
         pending.finished ||
         pending.paused ||
@@ -556,7 +559,7 @@ final class NativeSession {
     if (status == 0) pending.credit = true;
   }
 
-  void _deliverItem(PendingCall pending, Uint8List bytes) {
+  void _deliverItem(_PendingCall pending, Uint8List bytes) {
     pending.credit = false;
     if (pending.paused) {
       pending.heldItem = bytes;
@@ -566,17 +569,7 @@ final class NativeSession {
     _grant(pending);
   }
 
-  void checkSchema(int fingerprint) {
-    _ensureOpen();
-    if (_transport.schemaFingerprint != fingerprint) {
-      throw const NativeException(
-        'schema',
-        'Generated Dart and Zig schemas differ',
-      );
-    }
-  }
-
-  void _releaseInput(PendingCall pending) {
+  void _releaseInput(_PendingCall pending) {
     final input = pending.input;
     if (input != null) {
       _pendingBytes -= input.length;
@@ -584,7 +577,7 @@ final class NativeSession {
     }
   }
 
-  int _trySubmit(PendingCall pending, bool signal) {
+  int _trySubmit(_PendingCall pending, bool signal) {
     final admitted = _transport.submit(
       pending.route,
       pending.stream != null ? 10 : (signal ? 2 : 0),
@@ -605,7 +598,7 @@ final class NativeSession {
     return status;
   }
 
-  Future<void> _submit(PendingCall pending, bool signal) async {
+  Future<void> _submit(_PendingCall pending, bool signal) async {
     try {
       while (!pending.finished && !_closed) {
         final status = _trySubmit(pending, signal);
@@ -625,7 +618,7 @@ final class NativeSession {
     }
   }
 
-  void _finish(PendingCall pending) {
+  void _finish(_PendingCall pending) {
     pending.finished = true;
     _releaseInput(pending);
     pending.timer?.cancel();
@@ -633,7 +626,7 @@ final class NativeSession {
     if (pending.id != null) _pending.remove(pending.id);
   }
 
-  void _fail(PendingCall pending, Object error, [StackTrace? stack]) {
+  void _fail(_PendingCall pending, Object error, [StackTrace? stack]) {
     if (pending.finished) return;
     _trace("failed", route: pending.route, id: pending.id, error: error);
     _finish(pending);
@@ -651,7 +644,7 @@ final class NativeSession {
     }
   }
 
-  void _cancel(PendingCall pending, String code, String message) {
+  void _cancel(_PendingCall pending, String code, String message) {
     if (pending.finished) return;
     if (!_closed && pending.id != null) {
       _transport.cancel(pending.id!);
@@ -676,7 +669,7 @@ final class NativeSession {
   /// Closing the session removes registrations but cannot stop running Dart code.
   ///
   /// Generated scoped helpers register and unregister automatically:
-  /// {@example /bin/toolkit.dart#typed-callback}
+  /// {@example /example/runtime_features_example/demo/toolkit.dart#typed-callback}
   int registerCallback(FutureOr<Uint8List> Function(Uint8List) callback) {
     _ensureOpen();
     if (_nextCallback > 0xffffffff) throw StateError('Callback IDs exhausted');

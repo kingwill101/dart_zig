@@ -4,7 +4,7 @@ const maxSafe = 9007199254740991;
 void write64(ByteData data, int offset, int value, bool signed) {
   if (value < (signed ? -maxSafe : 0) || value > maxSafe) {
     throw RangeError(
-      'Web int values must be exactly representable; use BigInt schema types for wider values',
+      'Web int values must be exactly representable; use BigInt for wider values',
     );
   }
   var bits = BigInt.from(value).toUnsigned(64);

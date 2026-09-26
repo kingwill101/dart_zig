@@ -5,8 +5,9 @@ import 'dart:typed_data';
 
 import 'package:ffi/ffi.dart';
 
-import 'ffi.g.dart' as native;
+import 'runtime_abi.g.dart' as abi;
 import 'request.dart';
+import 'runtime_bindings.dart';
 
 /// Owns a bounded native request/reply bridge and its Dart notification port.
 ///
@@ -24,15 +25,16 @@ final class NativeBridge {
     this.maxBytes = 1024 * 1024,
     int maxRequests = 64,
     this.stopNative,
+    required this.bindings,
   }) {
     if (maxMessages <= 0 || maxBytes <= 0 || maxRequests <= 0) {
       throw ArgumentError('Queue and request limits must be positive.');
     }
-    if (!native.dz_initialize(NativeApi.initializeApiDLData)) {
+    if (!bindings.dz_initialize(NativeApi.initializeApiDLData)) {
       throw StateError('Unable to initialize the Dart dynamic API.');
     }
     _port = ReceivePort('dart_zig');
-    _handle = native.dz_create(
+    _handle = bindings.dz_create(
       _port.sendPort.nativePort,
       maxMessages,
       maxBytes,
@@ -44,7 +46,7 @@ final class NativeBridge {
     }
     _port.listen((_) {
       if (_closing) return;
-      native.dz_acknowledge(_handle);
+      bindings.dz_acknowledge(_handle);
       _signal();
     });
   }
@@ -52,10 +54,13 @@ final class NativeBridge {
   /// Maximum queued payload bytes in each direction.
   final int maxBytes;
 
+  /// Adapter for the same native asset that owns this bridge.
+  final RuntimeBindings bindings;
+
   /// Stops and joins native users before the bridge storage is freed.
   final Future<void> Function()? stopNative;
   late final ReceivePort _port;
-  late final Pointer<native.dz_Bridge> _handle;
+  late final Pointer<abi.dz_Bridge> _handle;
   Completer<void> _changed = Completer<void>();
   bool _closing = false;
   bool _reading = false;
@@ -85,10 +90,10 @@ final class NativeBridge {
   Future<NativeRequest?> nextRequest() async {
     if (_reading) throw StateError('Only one nextRequest may be pending.');
     _reading = true;
-    final output = calloc<Pointer<native.dz_Packet>>();
+    final output = calloc<Pointer<abi.dz_Packet>>();
     try {
       while (!_closing) {
-        final status = native.dz_take_request(_handle, output);
+        final status = bindings.dz_take_request(_handle, output);
         if (status == 2) {
           await close();
           return null;
@@ -98,18 +103,19 @@ final class NativeBridge {
           final packet = output.value;
           try {
             final bytes = Uint8List.fromList(
-              native
+              bindings
                   .dz_packet_bytes(packet)
-                  .asTypedList(native.dz_packet_length(packet)),
+                  .asTypedList(bindings.dz_packet_length(packet)),
             );
             return NativeRequest(
-              native.dz_packet_id(packet),
+              bindings.dz_packet_id(packet),
               bytes,
               sendReply,
-              isPending: (id) => !_closing && native.dz_is_pending(_handle, id),
+              isPending: (id) =>
+                  !_closing && bindings.dz_is_pending(_handle, id),
             );
           } finally {
-            native.dz_packet_free(packet);
+            bindings.dz_packet_free(packet);
           }
         }
         await _changed.future;
@@ -139,7 +145,7 @@ final class NativeBridge {
     try {
       while (true) {
         _ensureOpen();
-        final status = native.dz_reply(
+        final status = bindings.dz_reply(
           _handle,
           id,
           kind.index + 1,
@@ -175,10 +181,10 @@ final class NativeBridge {
 
   Future<void> _close() async {
     _closing = true;
-    native.dz_close(_handle);
+    bindings.dz_close(_handle);
     _signal();
     _port.close();
     await stopNative?.call();
-    native.dz_destroy(_handle);
+    bindings.dz_destroy(_handle);
   }
 }

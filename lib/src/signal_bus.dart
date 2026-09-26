@@ -32,7 +32,7 @@ final class SignalBus<T> {
   final bool replayLatest;
   final T Function(T) _retain;
   final void Function(T) _release;
-  final _listeners = <SignalListener<T>>{};
+  final _listeners = <_SignalListener<T>>{};
   bool _closed = false;
   bool _hasLatest = false;
   T? _latest;
@@ -47,7 +47,7 @@ final class SignalBus<T> {
       controller.close();
       return;
     }
-    final listener = SignalListener<T>(controller);
+    final listener = _SignalListener<T>(controller);
     _listeners.add(listener);
     controller.onCancel = () {
       _listeners.remove(listener);
@@ -57,14 +57,14 @@ final class SignalBus<T> {
     if (_hasLatest) _enqueue(listener, _latest as T);
   }, isBroadcast: true);
 
-  void _clear(SignalListener<T> listener) {
+  void _clear(_SignalListener<T> listener) {
     while (listener.pending.isNotEmpty) {
       _release(listener.pending.removeFirst());
     }
     listener.bytes = 0;
   }
 
-  void _schedule(SignalListener<T> listener) {
+  void _schedule(_SignalListener<T> listener) {
     if (listener.scheduled || listener.controller.isPaused) return;
     listener.scheduled = true;
     scheduleMicrotask(() {
@@ -80,7 +80,7 @@ final class SignalBus<T> {
     });
   }
 
-  void _enqueue(SignalListener<T> listener, T value) {
+  void _enqueue(_SignalListener<T> listener, T value) {
     final size = sizeOf(value);
     if (size < 0) throw ArgumentError('Negative signal size');
     if (overflow == OverflowPolicy.latest) {
@@ -156,8 +156,8 @@ final class SignalBus<T> {
 }
 
 /// @nodoc
-final class SignalListener<T> {
-  SignalListener(this.controller);
+final class _SignalListener<T> {
+  _SignalListener(this.controller);
   final MultiStreamController<T> controller;
   final pending = ListQueue<T>();
   int bytes = 0;

@@ -32,7 +32,8 @@ final class TransportStats {
 /// [onWake] must eventually notify when retry or output processing can progress.
 abstract interface class SessionTransport {
   int get protocolVersion;
-  int get schemaFingerprint;
+  int get liveBuffers;
+  int get liveBufferBytes;
   void Function()? get onWake;
   set onWake(void Function()? callback);
   ({int status, int id}) submit(

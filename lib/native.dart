@@ -2,4 +2,4 @@
 library;
 
 export 'src/transport_native.dart' show NativeTransport;
-export 'src/generated/runtime_bindings.g.dart';
+export 'src/runtime_bindings.dart';

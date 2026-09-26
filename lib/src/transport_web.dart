@@ -38,7 +38,6 @@ extension type WasmMemory(JSObject _) implements JSObject {
 extension type WasmApi(JSObject _) implements JSObject {
   external WasmMemory get memory;
   external int dz_web_protocol();
-  external int dz_web_schema();
   external int dz_web_alloc(int length);
   external void dz_web_free(int pointer, int length);
   external int dz_web_create(int count, int bytes, int tasks);
@@ -70,7 +69,6 @@ extension type WasmApi(JSObject _) implements JSObject {
   external void dz_web_frame_release(int frame);
   external double dz_web_stats(int runtime, int field);
   external double dz_web_live(int field);
-  external double dz_web_sum(double a, double b);
 }
 
 WasmApi? _defaultApi;
@@ -119,7 +117,9 @@ final class WebTransport implements SessionTransport {
   @override
   int get protocolVersion => api.dz_web_protocol();
   @override
-  int get schemaFingerprint => api.dz_web_schema().toUnsigned(32);
+  int get liveBuffers => api.dz_web_live(0).toInt();
+  @override
+  int get liveBufferBytes => api.dz_web_live(1).toInt();
   void _schedule() {
     if (_scheduled || _destroyed || stopped) return;
     _scheduled = true;
@@ -274,29 +274,11 @@ SessionTransport createTransport({
   required int workers,
   required int batchSize,
 }) {
-  if (bindings != null) {
-    throw ArgumentError(
-      'Supply a WebTransport through transport for a custom Wasm asset',
-    );
-  }
+  // Native adapters identify FFI assets. Web selects its Wasm asset through
+  // initializeZig or an explicitly supplied WebTransport.
   return WebTransport(
     queueCapacity: queueCapacity,
     maxBytes: maxBytes,
     maxPending: maxPending,
   );
-}
-
-int get liveBuffers => _defaultApi?.dz_web_live(0).toInt() ?? 0;
-int get liveBufferBytes => _defaultApi?.dz_web_live(1).toInt() ?? 0;
-int webSum(int a, int b, {WasmApi? api}) {
-  final result =
-      (api ?? _defaultApi ?? (throw StateError('Await initializeZig')))
-          .dz_web_sum(a.toDouble(), b.toDouble());
-  if (!result.isFinite) {
-    throw const NativeException(
-      'sync_error',
-      'Integer sum exceeds the Web safe range',
-    );
-  }
-  return result.toInt();
 }
