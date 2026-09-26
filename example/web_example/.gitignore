@@ -1,6 +1,7 @@
 .dart_tool/
 pubspec.lock
 build/
+web/*.wasm
 zig/.zig-cache/
 zig/zig-out/
 zig/.zigchain_probe_*.zig

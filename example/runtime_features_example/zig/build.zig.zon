@@ -6,5 +6,5 @@
     .dependencies = .{
         .dart_zig = .{ .path = "../../../zig" },
     },
-    .paths = .{ "build.zig", "build_web.zig", "build.zig.zon", "src" },
+    .paths = .{ "build.zig", "build.zig.zon", "src" },
 }

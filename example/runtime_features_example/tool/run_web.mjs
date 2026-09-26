@@ -5,8 +5,8 @@ import {resolve} from 'node:path';
 import {pathToFileURL} from 'node:url';
 globalThis.self = globalThis;
 const originalFetch = globalThis.fetch;
-globalThis.fetch = async (url, options) => url === 'dart_zig.wasm'
-  ? new Response(await readFile(new URL('../build/web/dart_zig.wasm', import.meta.url)))
+globalThis.fetch = async (url, options) => url === 'runtime_features_example.wasm'
+  ? new Response(await readFile(new URL('../build/web/runtime_features_example.wasm', import.meta.url)))
   : originalFetch(url, options);
 const timer = setTimeout(() => { console.error('Web example timed out'); process.exit(1); }, 30000);
 const originalLog = console.log;
