@@ -1,0 +1,27 @@
+name: Publish
+
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, synchronize, reopened, labeled, unlabeled]
+  push:
+    tags: ['v[0-9]+.[0-9]+.[0-9]+']
+
+permissions:
+  contents: read
+
+jobs:
+  # Firehose skips the root package while its pubspec has publish_to: none.
+  # Enable it after switching the cimport Git dependency to a hosted release.
+  publish:
+    uses: dart-lang/ecosystem/.github/workflows/publish.yaml@main
+    permissions:
+      contents: read
+      id-token: write
+      pull-requests: write
+    with:
+      sdk: stable
+      # Only the root Dart package is released; examples remain unpublished.
+      ignore-packages: 'example/**'
+      # Keep validation in the job output/artifact, including for fork PRs.
+      write-comments: false

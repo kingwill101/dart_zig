@@ -1,0 +1,31 @@
+# Local state and generated build products (at any package depth).
+.git/
+.github/
+.agents/
+.codex/
+.deslop/
+.kilo/
+.dart_tool/
+.idea/
+.vscode/
+build/
+.zig-cache/
+zig-out/
+.flutter-plugins-dependencies
+pubspec.lock
+*.log
+__pycache__/
+*.pyc
+.zigchain_probe_*.zig
+.zigchain_probe_*.zig.zon
+.zigchain_cimport.zig
+.zigchain_cimport_source.c
+
+# Generated API reference output.
+/doc/api/
+
+# Compiled Web assets are regenerated from the included sources.
+*.wasm
+*.dart.js
+*.dart.js.deps
+*.dart.js.map

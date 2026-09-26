@@ -1,7 +1,15 @@
 name: dart_zig
 description: Dart-first Zig calls, signals, streams, ownership, and WebAssembly.
 version: 0.1.0
+# Enable publishing after the cimport tooling lands in a hosted upstream release.
 publish_to: none
+repository: https://github.com/kingwill101/dart_zig
+issue_tracker: https://github.com/kingwill101/dart_zig/issues
+topics:
+  - zig
+  - ffi
+  - native-assets
+  - wasm
 environment:
   sdk: ^3.13.0
 dependencies:
