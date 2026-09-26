@@ -10,9 +10,17 @@ replies. The callback may itself make another native call. This differs from
 a [signal](/signals-and-state), which sends a one-way message without waiting
 for an application result.
 
+## Register and invoke a callback
+
+This snippet uses the generated API from the
+[callbacks example](https://github.com/kingwill101/dart_zig/tree/main/example/callbacks_example).
+Its explicit `protocol.zig` routes generate `ProtocolApi` and the codecs below;
+they are not names created by the default `init` handler.
+
 Register a typed callback on the session and pass its ID to a native route:
 
 ```dart
+await initializeZig();
 final session = createSession(workers: 1);
 try {
   final api = ProtocolApi(session);
@@ -32,11 +40,13 @@ try {
 }
 ```
 
-The current [callbacks example](https://github.com/kingwill101/dart_zig/tree/main/example/callbacks_example)
-uses the explicit `protocol.zig` route form and generated `ProtocolApi` codecs.
-Its Zig dispatcher sends a callback frame, returns control to the runtime,
+## How Zig waits for Dart
+
+The example's Zig dispatcher sends a callback frame, returns control to the runtime,
 and resumes when Dart's result arrives. It works with one native worker because
 the worker is free while Dart handles the callback.
+
+## Dispose the registration
 
 Dispose a registration when it is no longer needed. Closing the session also
 cleans up its registrations. Unregistering prevents later invocations but

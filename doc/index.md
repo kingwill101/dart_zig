@@ -10,7 +10,7 @@ signals, streams, callbacks, and stateful objects.
 
 ## Your first steps
 
-1. [Set up your package](../README.md#getting-started). Call Zig code through
+1. [Set up your package](../README.md#quick-start). Call Zig code through
    generated FFI bindings and a native build hook.
 2. [Explore the Dart API](usage.md). Follow calls, events, streams, and ownership
    using the same runnable example.

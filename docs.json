@@ -13,6 +13,7 @@
       "group": "Start here",
       "pages": [
         { "title": "Overview", "href": "/" },
+        { "title": "Why dart_zig?", "href": "/why-dart-zig" },
         { "title": "Getting started", "href": "/getting-started" },
         { "title": "Project layout and generation", "href": "/project-layout" },
         { "title": "Direct FFI", "href": "/direct-ffi" },

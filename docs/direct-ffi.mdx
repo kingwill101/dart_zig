@@ -10,10 +10,23 @@ For a short native function that returns one result, use
 session, event route, or message codec. Use the session API when work needs
 native workers, cancellation, signals, streams, or callbacks.
 
+See [why dart_zig?](/why-dart-zig) for the runtime tradeoffs and how generated
+bindings and Dart's dynamic C API work together.
+
+Direct FFI runs synchronously on the calling isolate and targets native Dart,
+not the package's Web/Wasm transport. Use Dart 3.13 or later and Zig 0.15.2 or
+0.16.0 for the setup used in this repository.
+
+## Set up the native asset
+
 Add `hooks`, `logging`, and `native_toolchain_zig` to the application's
 `pubspec.yaml`. Create a `zig/` package with `zig init`; its `build.zig`
 should compile a dynamic library rooted at `src/exports.zig` and install it.
-Export a C ABI function:
+The [complete setup](https://github.com/kingwill101/dart_zig/blob/main/doc/generation.md#direct-ffi)
+includes the dependency versions, build file, and hook; it uses this repository's
+`cimport-generator-wip` tooling fork.
+
+Export a C ABI function from `zig/src/exports.zig`:
 
 ```zig
 export fn add(a: i64, b: i64) i64 {
@@ -22,9 +35,15 @@ export fn add(a: i64, b: i64) i64 {
 ```
 
 Add a `hook/build.dart` using `ZigBuilder`, with the asset and library names
-matching your package. Generate the Dart binding from the Dart package root:
+matching your package.
+
+## Generate and call the binding
+
+Resolve dependencies, then generate the Dart binding from the Dart package root
+(replace `my_app` with your package name):
 
 ```sh
+dart pub get
 dart run native_toolchain_zig:zig bindings \
   --zig-dir zig \
   --root-source-file src/exports.zig \
@@ -32,8 +51,17 @@ dart run native_toolchain_zig:zig bindings \
   --asset-id package:my_app/my_app.dart
 ```
 
-The resulting Dart `add(int, int)` calls the Zig export directly. Regenerate
-after changing exported signatures. The complete build file and hook are in
-the [direct FFI setup guide](https://github.com/kingwill101/dart_zig/blob/main/doc/generation.md#direct-ffi);
-the [minimal example](https://github.com/kingwill101/dart_zig/tree/main/example/minimal_example)
-is a runnable package.
+Create `bin/main.dart`:
+
+```dart
+import 'package:my_app/src/ffi.g.dart';
+
+void main() {
+  print(add(20, 22)); // 42
+}
+```
+
+Run `dart run bin/main.dart`. The build hook compiles the library and the
+binding calls the Zig export directly. Regenerate after changing exported
+signatures. The [minimal example](https://github.com/kingwill101/dart_zig/tree/main/example/minimal_example)
+is a complete runnable package.

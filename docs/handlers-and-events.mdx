@@ -11,6 +11,20 @@ error-union return value define its generated Dart types. The function name
 defines a stable route ID, so regenerate the bindings and native asset after
 renaming it.
 
+## Handler signatures
+
+A handler takes one request parameter, optionally preceded by `*dz.Context`,
+and returns an error union such as `!i64` or `!void`. Use `dz.protocol.Empty`
+for an empty request; the generated Dart method takes `null`. Keep helper
+functions private or in imported modules so they do not become API routes.
+
+A return type with `Item` and `next()` defines a [stream](/streams).
+The [message types](/message-types) guide lists supported request and result
+shapes. Regenerate with `dart run dart_zig:dart_zig generate` whenever the
+interface changes, then rebuild the application.
+
+## Declare and emit an event
+
 The same module can declare `pub const events` for named signal or state
 endpoints. For example:
 
@@ -51,6 +65,11 @@ final messages = api.myMessage.stream.map((pack) {
   }
 });
 ```
+
+## Subscribe before publishing
+
+Creating the mapped stream does not start a listener. Subscribe to `messages`
+with `listen`, `first`, or a `StreamBuilder` before calling `api.publish`.
 
 Subscribe before emitting a `signal`: it does not replay missed messages. Use
 `.kind = dz.protocol.RouteKind.state` when new subscribers should receive the

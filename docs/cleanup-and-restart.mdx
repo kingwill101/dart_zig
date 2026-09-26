@@ -5,10 +5,13 @@ description: Close sessions, cancel work, and release application-owned native r
 
 # Cleanup and restart
 
+## Close a session
+
 A `NativeSession` owns pending operations, workers, callbacks, event endpoints,
 and native storage. Close it when its host no longer needs it:
 
 ```dart
+await initializeZig();
 final session = createSession();
 try {
   final api = ZigApi(session);
@@ -20,14 +23,22 @@ try {
 
 Closing stops new work, rejects pending Dart calls, wakes native workers, and
 waits for them to exit before freeing session storage. Repeated close calls
-share the same future. A native handler doing long CPU work must call
+share the same future. Close does not drain calls to successful completion:
+await work you want to finish before closing. Buffers already returned to Dart
+remain owned by their callers and still need disposal.
+
+A native handler doing long CPU work must call
 `context.check()` periodically; cancellation cannot interrupt arbitrary Zig
 code safely.
+
+## Stop external producers
 
 If your application starts native producers outside the session's workers,
 provide `stopExternal` when creating the session. Stop and join those producers
 before session storage is freed. A failed stop or cleanup retains storage
 rather than freeing memory that external code might still use.
+
+## Coordinate cleanup and restart
 
 The core package also provides host-controlled lifecycle helpers:
 
@@ -36,7 +47,8 @@ The core package also provides host-controlled lifecycle helpers:
 - `CleanupScope` runs registered disposers in reverse order and aggregates
   failures.
 - `RestartableResource<T>` disposes the old resource before creating a
-  replacement. A replacement session has fresh state, callbacks, and handles.
+  replacement. A failed disposal prevents replacement. A replacement session
+  has fresh state, callbacks, and handles.
 
 These helpers do not depend on Flutter. A Flutter widget can close its owned
 session during teardown; CLI tools and servers can choose their own shutdown

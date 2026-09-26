@@ -10,8 +10,11 @@ API from that session inside the isolate, and close the session before the
 isolate exits. Send ordinary Dart values between isolates; native handles and
 session pointers belong to the isolate that created them.
 
+## Run independent sessions
+
 ```dart
 import 'dart:isolate';
+import 'package:my_app/src/generated/generated.dart';
 
 Future<int> calculate() async {
   final session = createSession();
@@ -22,17 +25,25 @@ Future<int> calculate() async {
   }
 }
 
-final results = await Future.wait([
-  Isolate.run(calculate),
-  Isolate.run(calculate),
-]);
+Future<void> main() async {
+  final results = await Future.wait([
+    Isolate.run(calculate),
+    Isolate.run(calculate),
+  ]);
+  print(results); // [42, 42]
+}
 ```
+
+Replace `my_app` with your package name. This example targets the Dart VM;
+Web uses the cooperative execution described in [Web and Wasm](/web-and-wasm).
 
 The [isolates example](https://github.com/kingwill101/dart_zig/tree/main/example/isolates_example)
 runs this pattern as a standalone Dart program. Each session has its own
 pending calls, callback registrations, state snapshots, and native handles.
 Do not carry a `SignalPack` or borrowed native buffer across isolate boundaries;
 copy the needed Dart data first.
+
+## Choose who owns the work
 
 If one isolate should coordinate all native work, keep the session there and
 send application messages to that isolate. If isolates perform independent

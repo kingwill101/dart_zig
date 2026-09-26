@@ -1,0 +1,92 @@
+---
+title: Why dart_zig?
+description: Choose between direct generated FFI bindings and a managed Dart-Zig runtime.
+---
+
+# Why use dart_zig?
+
+`native_toolchain_zig` builds Zig code as a Dart native asset and generates
+FFI bindings for its exported C ABI. That is enough when your application needs
+to call native functions and manage their results directly.
+
+`dart_zig` builds on those bindings. It adds a runtime for asynchronous work,
+bidirectional messages, and resource lifetimes, plus a generator that turns Zig
+handlers into typed Dart calls and event endpoints. Use it when you would
+otherwise need to build that coordination yourself.
+
+## What each layer provides
+
+| Concern | Direct generated bindings | dart_zig sessions |
+| --- | --- | --- |
+| Dart-facing API | Functions matching exported C ABI signatures | Futures, streams, and typed event endpoints generated from Zig handlers and routes |
+| Execution | A normal FFI call runs synchronously on its calling isolate; the application can arrange background work | Native worker execution with queued requests and results |
+| Native-to-Dart communication | The application chooses and integrates callbacks or ports | Signals, state endpoints, and asynchronous request/reply callbacks |
+| Flow control | Defined by the application or native library | Bounded queues and payload budgets, plus consumer credits for streams |
+| Cancellation | Defined by the application or native library | Call cancellation and deadlines, with cooperation from native code |
+| Ownership and shutdown | Defined by the application or native library | Owned buffers, attachment leases, session cleanup, and worker shutdown |
+| Web | Native FFI bindings need a separate Web implementation | A Wasm transport behind the generated session API |
+
+Direct bindings can be part of an asynchronous design. A native library may
+already provide workers, callbacks, and resource management; Dart can also
+isolate synchronous work. Binding generation exposes that library's interface,
+but does not by itself define a session protocol or implement these behaviors.
+
+## How we use Dart's C API
+
+The native backend uses both generated FFI declarations and the Dart dynamic
+C API. The repository vendors `dart_api_dl.h`, its supporting headers, and
+`dart_api_dl.c`; the native Zig build compiles that C implementation.
+
+When a session opens:
+
+1. Dart calls the generated `dz_initialize` binding with
+   `NativeApi.initializeApiDLData`. Zig initializes the dynamic API with
+   `Dart_InitializeApiDL`.
+2. Dart creates a `ReceivePort` and passes its native port ID to the Zig runtime.
+3. Native workers queue results and use `Dart_PostInteger_DL` to notify that
+   port. The integer is a wake-up notification, not the application payload.
+4. Dart acknowledges the notification and drains runtime frames through the
+   generated FFI bindings. The session delivers results to pending futures,
+   streams, or event endpoints.
+
+The C API supplies the notification mechanism. `dart_zig` supplies the queues,
+request tracking, codecs, stream credits, cancellation, and cleanup around it.
+An application using direct bindings can use the same Dart C API and implement
+its own coordination. Using these headers is not exclusive to `dart_zig`.
+
+This integration is specific to the native backend. Web uses the Wasm transport
+and cooperative host-event-loop scheduling, without Dart VM ports or the native
+dynamic API. See [Web and Wasm](/web-and-wasm) for those differences.
+
+## Choose direct FFI when
+
+- You need a few short synchronous operations.
+- You are binding a C-compatible library whose existing API fits your needs.
+- You want direct control over native layouts, pointers, allocation, and calls.
+- You already have the threading, callback, and lifecycle design you need.
+
+Start with [direct FFI](/direct-ffi) and the minimal example. A simple `add`
+function demonstrates the setup; it does not need a session to be useful.
+
+## Choose dart_zig when
+
+- Native work should run on workers while Dart remains responsive.
+- Operations need cancellation, deadlines, or multiple streamed results.
+- Zig needs to publish events or ask Dart to perform asynchronous work.
+- Related operations share native resources and need coordinated shutdown.
+- You want generated typed endpoints with both native and Wasm transports.
+
+Start with [getting started](/getting-started), then choose a
+[communication pattern](/#choose-a-communication-pattern).
+
+## Account for the runtime cost
+
+A session adds workers on native targets, queues, request bookkeeping, and
+message encoding and decoding. Payloads can be copied across the boundary;
+owned buffers reduce some copies but do not make every operation zero-copy.
+For tiny, frequent synchronous operations, a direct call avoids that machinery.
+
+The generated protocol also has a defined set of [message types](/message-types).
+Cancellation remains cooperative, callers must dispose owned resources, and Web
+has different execution and integer limits. Choose the runtime for the behavior
+it provides, rather than assuming it makes an individual FFI call faster.

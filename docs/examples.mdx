@@ -5,8 +5,27 @@ description: Small, independent Dart and Flutter projects using dart_zig.
 
 # Examples
 
-Each example has its own Dart package, Zig sources, and native build hook. Open
-its README for setup and run instructions.
+Each example has its own Dart package, Zig sources, and native build hook.
+Run commands from the example's directory so the correct package and asset are
+used. The examples require Dart 3.13 or later and Zig 0.15.2 or 0.16.0; Flutter
+examples also need a compatible Flutter SDK, and the Web runner needs Node.
+
+## Start with a small project
+
+For your first session-based call, run:
+
+```sh
+cd example/calls_example
+dart pub get
+dart run bin/main.dart
+```
+
+The [minimal example](https://github.com/kingwill101/dart_zig/tree/main/example/minimal_example)
+shows a synchronous direct FFI call. Flutter examples use `flutter pub get`
+and `flutter run`; the [Web guide](/web-and-wasm) covers its build and runner.
+Open each project's README for its full setup and run instructions.
+
+## Find a feature
 
 | Feature | Example |
 | --- | --- |
@@ -26,6 +45,8 @@ its README for setup and run instructions.
 | Flutter native compute | [Fractal](https://github.com/kingwill101/dart_zig/tree/main/example/fractal_flutter_example) |
 | Continuous Flutter updates | [Particle stream](https://github.com/kingwill101/dart_zig/tree/main/example/particle_stream_flutter_example) |
 | Web and Wasm | [Web](https://github.com/kingwill101/dart_zig/tree/main/example/web_example) |
+
+## See the features together
 
 The [runtime features example](https://github.com/kingwill101/dart_zig/tree/main/example/runtime_features_example)
 combines several APIs in one integration project. Start with a focused

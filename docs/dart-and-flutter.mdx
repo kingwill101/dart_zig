@@ -9,6 +9,25 @@ description: Use the same dart_zig core from Dart applications and Flutter widge
 package, isolate, or Flutter app can own a `NativeSession` and its generated
 `ZigApi`. The host decides when to create and close that session.
 
+## Initialize before opening a session
+
+Complete [getting started](/getting-started) and import your generated
+`src/generated/generated.dart` entrypoint. In Flutter, initialize before
+`runApp` so the same startup works on native and Web:
+
+```dart
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await initializeZig();
+  runApp(const MaterialApp(home: MessagePage()));
+}
+```
+
+`MaterialApp` and `WidgetsFlutterBinding` come from `package:flutter/material.dart`;
+`MessagePage` is your application widget. On the VM, `initializeZig()` is a no-op.
+
+## Keep the session and stream stable
+
 Flutter uses ordinary Dart futures and streams from the generated API. For a
 typed Zig-to-Flutter event, declare the payload and event in
 `zig/src/handlers.zig`, then regenerate. A widget can keep the session, API,
@@ -33,10 +52,14 @@ uses a button to call `api.publish(7)`; the Zig handler emits `MyMessage` and
 the widget displays its fields. `publish` is that example's trigger, not a
 special function name required by Zig.
 
+## Close with the owner
+
 Close the session when the widget or application owner is disposed. Flutter's
 `dispose` is synchronous, so the example starts asynchronous close with
 `unawaited(_session.close())`. A higher-level application owner can await
 shutdown when it needs a completion guarantee.
+
+## More examples
 
 For long-running native work, see the
 [fractal](https://github.com/kingwill101/dart_zig/tree/main/example/fractal_flutter_example)

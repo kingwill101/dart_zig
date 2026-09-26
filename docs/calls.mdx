@@ -7,8 +7,11 @@ description: Invoke Zig handlers asynchronously and receive typed results.
 
 A public function in `zig/src/handlers.zig` becomes a typed method on the
 generated `ZigApi`. Its request parameter defines the Dart input; its
-error-union return type defines the result. The native worker executes the
-handler, so heavy work does not run on the calling Dart isolate.
+error-union return type defines the result. On native targets, a worker executes
+the handler outside the calling Dart isolate. On Web, work runs cooperatively
+on the host event loop; see [Web scheduling](/web-and-wasm#execution-and-data-limits).
+
+## Define and call a handler
 
 ```zig
 pub const AddRequest = struct {
@@ -26,6 +29,7 @@ pub fn add(request: AddRequest) !i64 {
 After `dart run dart_zig:dart_zig generate`, the matching Dart call is:
 
 ```dart
+await initializeZig();
 final session = createSession();
 try {
   final api = ZigApi(session);
@@ -36,12 +40,33 @@ try {
 }
 ```
 
-The generated API owns the request and response codecs. A call completes when
-its response is delivered or fails with a `NativeException`; a failure does not
-roll back effects the native handler already performed. Generated `startAdd`
-returns a `TypedCall` when you need explicit cancellation. A positive `timeout`
-can bound admission and execution. Long Zig loops must cooperate with
-cancellation by checking their `dz.Context`.
+Import the generated entrypoint as shown in [getting started](/getting-started).
+The generated API supplies the request and response codecs.
+
+## Cancellation and timeouts
+
+A call completes when its response is delivered or fails with a `NativeException`; a failure does not
+roll back effects the native handler already performed. Pass a positive
+`timeout` to bound admission and execution:
+
+```dart
+final sum = await api.add(
+  (a: 20, b: 22),
+  timeout: const Duration(seconds: 2),
+);
+print(sum);
+```
+
+Use `api.startAdd(request, timeout: ...)` when you need explicit cancellation.
+It returns a `TypedCall<int>` with a `result` future and a `cancel()` method.
+Observe `result` even when cancelling, because cancellation completes it with
+an error if the call is still pending.
+
+Long Zig loops must cooperate by accepting `context: *dz.Context` before the
+request parameter and calling `try context.check()` between work units.
+Cancellation does not forcibly interrupt arbitrary Zig code.
+
+## Session lifetime
 
 Keep one session open for related work instead of opening one per call. If the
 sender does not need an acknowledgment, consider a [signal](/signals-and-state).

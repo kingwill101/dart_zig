@@ -8,28 +8,37 @@ description: Run the same Dart session API with Zig compiled to WebAssembly.
 The package conditionally selects native FFI on the Dart VM and a WebAssembly
 transport on Web. Application code can keep the same generated session and
 typed endpoint API. When the application has a `web/` directory,
-`dart_zig generate` builds `web/<package_name>.wasm` and writes a conditional
-`session.g.dart` entrypoint. The Web server must serve that asset.
+`dart run dart_zig:dart_zig generate` builds `web/<package_name>.wasm` and
+writes a conditional `session.g.dart` entrypoint. The Web server must serve that asset.
+
+## Initialize the module
 
 On Web, initialize the module before opening a session:
 
 ```dart
 import 'package:my_app/src/generated/generated.dart';
 
-await initializeZig();
-final session = createSession();
-try {
-  final api = ZigApi(session);
-  // Call generated routes here.
-} finally {
-  await session.close();
+Future<void> main() async {
+  await initializeZig();
+  final session = createSession();
+  try {
+    final api = ZigApi(session);
+    print(await api.add((a: 20, b: 22))); // 42
+  } finally {
+    await session.close();
+  }
 }
 ```
 
-`initializeZig()` is a no-op on the VM. On Web it loads `<package_name>.wasm` from
-the app's Web root before `createSession()`; pass `wasmUri` only when serving
-the asset elsewhere, or provide `wasmBytes` from a custom loader. The
-[Web example](https://github.com/kingwill101/dart_zig/tree/main/example/web_example)
+`initializeZig()` is a no-op on the VM. On Web it fetches the relative URL
+`<package_name>.wasm` before `createSession()`. Serve the asset at that resolved
+URL, pass `wasmUri` for another location, or provide `wasmBytes` from a custom
+loader. Import the application's generated entrypoint to get its package-specific
+asset name.
+
+## Run the Web example
+
+The [Web example](https://github.com/kingwill101/dart_zig/tree/main/example/web_example)
 builds one typed Zig handler for native Dart and Wasm:
 
 ```sh
@@ -42,16 +51,35 @@ node tool/run_web.mjs
 
 Its Node runner executes the compiled JavaScript against Wasm. Serve the
 browser page with `dart run tool/serve_web.dart` for browser inspection.
+These build and serve scripts belong to the example; `dart_zig init` does not
+create them for new applications.
+
+## Flutter Web
+
 The `fractal_flutter_example`, `particle_stream_flutter_example`, and
 `typed_signal_flutter_example` projects also include Web scaffolds and can run
-with `flutter run -d chrome` after `flutter pub get`.
+with `flutter run -d chrome` after `flutter pub get`. For an existing Flutter
+application, add its Web scaffold first, then regenerate so the Wasm asset
+and Web bindings are created:
+
+```sh
+flutter create --platforms=web .
+flutter pub get
+dart run dart_zig:dart_zig generate
+flutter run -d chrome
+```
+
+## Execution and data limits
 
 Web scheduling differs from native workers: Zig work runs cooperatively on the
 host event loop. Split long operations into short continuations so the page
 stays responsive. Paused streams wait for credits. Wasm output is copied to
 Dart-owned memory before it is exposed; native buffer ownership guarantees
-do not imply zero-copy Wasm transfer. Integer values that exceed JavaScript's
-exact integer range need explicit care.
+do not imply zero-copy Wasm transfer.
+
+Generated 64-bit integer codecs reject values outside JavaScript's exact integer
+range instead of silently rounding them. See [message types](/message-types#integer-limits)
+for the ranges and portable alternatives.
 
 The Web example demonstrates the supported path. Other browser behavior,
 including the application's own asset serving and security policy, needs to

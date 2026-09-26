@@ -1,40 +1,54 @@
 ---
 title: dart_zig
-description: Dart-first communication with Zig on native platforms and the Web.
+description: Call Zig from Dart and Flutter through generated, typed APIs.
 ---
 
 # Dart and Zig, working together
 
-`dart_zig` provides typed calls, signals, streams, callbacks, owned buffers, and
-session cleanup. Dart applications own their Zig code and compile it as a native
-asset through a build hook. The core Dart package has no Flutter dependency.
+Write your handlers in Zig and call them through generated Dart methods.
+`dart_zig` connects the two with typed calls, streams, signals, callbacks,
+and explicit resource ownership. Sessions manage communication and cleanup
+for related work.
 
-Start with [a generated Zig call](/getting-started). The [project layout](/project-layout)
-shows where your Zig code, hook, and generated Dart API belong. If you only
-need a short synchronous native function, use [direct FFI](/direct-ffi).
+Your application owns its Zig source. A Dart build hook compiles it into a
+native library; Web applications load a WebAssembly module. The core package
+has no Flutter dependency and does not prescribe an application protocol.
+
+## Start with your use case
+
+Read [why dart_zig?](/why-dart-zig) for a comparison with direct generated FFI
+bindings, including how the native runtime uses Dart's C API.
+
+For asynchronous work, native workers, or Web/Wasm, follow
+[getting started](/getting-started) to generate and run your first call.
+For a short synchronous native function, [direct FFI](/direct-ffi) uses
+`native_toolchain_zig` without a session or message codec.
+
+The package is under active development and is not published to pub.dev.
+The setup guide uses a local checkout and the repository's build-tooling fork.
 
 ## Choose a communication pattern
 
 | You need | Read |
 | --- | --- |
 | One request and one result | [Calls](/calls) |
-| Native-to-Dart notifications or latest state | [Signals and state](/signals-and-state) |
-| Several results at the listener's pace | [Streams](/streams) |
+| Live notifications or the latest state value | [Signals and state](/signals-and-state) |
+| Multiple results with consumer pacing | [Streams](/streams) |
 | Zig asking Dart to perform work | [Dart callbacks](/callbacks) |
-| Large binary payloads or native resources | [Buffers and ownership](/buffers-and-ownership) |
+| Binary payloads or native resources | [Buffers and ownership](/buffers-and-ownership) |
 
-Use [handlers and events](/handlers-and-events) to understand how Zig
-declarations become typed Dart endpoints. [Message types](/message-types)
-lists the shapes the generator accepts. The [examples](/examples) are
-independent projects with their own Dart package, Zig source, and build hook.
+[Handlers and events](/handlers-and-events) explains how Zig declarations
+become typed Dart endpoints. [Message types](/message-types) lists the supported
+values, and [project layout](/project-layout) explains the generated files.
 
-## Run on your platform
+## Integrate with your application
 
-The same core works in [Dart and Flutter](/dart-and-flutter),
-[Web and Wasm](/web-and-wasm), and [independent Dart isolates](/isolates).
-Read [cleanup and restart](/cleanup-and-restart) before keeping native work
-alive beyond a single call. [Errors and diagnostics](/errors-and-diagnostics)
-covers failures, logs, and queue pressure.
+Use the guides for [Dart and Flutter](/dart-and-flutter),
+[Web and Wasm](/web-and-wasm), or [Dart isolates](/isolates).
+The API is shared across native and Web targets, but their execution and
+integer limits differ.
 
-The library is under active development. Native Dart applications use a build
-hook to compile their Zig asset; Web applications use the Wasm transport.
+Read [cleanup and restart](/cleanup-and-restart) when deciding who owns a
+session, and [errors and diagnostics](/errors-and-diagnostics) for failures,
+logs, and queue pressure. The [examples](/examples) provide runnable projects
+for each feature.

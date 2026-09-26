@@ -6,7 +6,10 @@ description: Understand which Zig values become generated Dart request and event
 # Message types
 
 The typed handler generator reads Zig signatures at comptime. It generates
-Dart codecs for these wire shapes:
+Dart codecs for these wire shapes. These are message values, not native memory
+layouts.
+
+## Supported types
 
 | Zig declaration | Generated Dart value |
 | --- | --- |
@@ -15,8 +18,13 @@ Dart codecs for these wire shapes:
 | `f32`, `f64` | `double` |
 | `dz.protocol.Text` | `String` |
 | `[]const u8` | `Uint8List` |
-| `void` or `dz.protocol.Empty` | `Null` |
-| Plain Zig `struct` | Dart record with named fields |
+| `void`, `dz.protocol.Empty`, or a zero-field `struct` | `Null` |
+| Nonempty plain Zig `struct` | Dart record with named fields |
+
+Empty request values are passed as `null`. Empty call results are exposed as
+`Future<void>` rather than `Future<Null>`; their codecs encode zero bytes.
+
+## Records and field order
 
 Fields of a plain struct are encoded in declaration order. Nested structs can
 contain other supported wire types. The generated Dart record preserves Zig
@@ -32,6 +40,20 @@ pub const MyMessage = struct {
 The generated Dart type is `({int currentNumber, bool otherBool})`. You do not
 write a separate Dart model or codec for this declaration. Edit the Zig type
 and rerun `dart run dart_zig:dart_zig generate`.
+
+## Integer limits
+
+On Web, generated 64-bit integer codecs accept only exactly representable
+values: signed values from `-9007199254740991` to `9007199254740991`, and unsigned
+values from `0` to `9007199254740991`. Encoding outside that range throws
+`RangeError`; decoding a wider native result throws `FormatException`.
+
+On the Dart VM, `u64` uses the signed 64-bit `int` bit representation: values
+with the high bit set appear as negative Dart integers. Choose a text or byte
+representation when the API needs a portable wider integer range. The generated
+type set does not currently include Zig `i128`/`u128` or Dart `BigInt`.
+
+## Unsupported shapes
 
 The handler generator currently rejects Zig tuples and other protocol types
 outside its supported set at generation time. This wire type list is separate

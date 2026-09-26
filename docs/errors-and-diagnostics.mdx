@@ -10,6 +10,8 @@ failures are reported as `NativeException`; invalid Dart arguments can throw
 `ArgumentError`, and malformed codec input can throw `FormatException`.
 Native side effects may already have occurred before a call fails.
 
+## Handle failures by code
+
 Common failure codes include:
 
 | Code | Meaning |
@@ -18,12 +20,21 @@ Common failure codes include:
 | `too_large` | Payload exceeds the configured session limit |
 | `cancelled`, `deadline`, `closed` | Cancellation, timeout, or shutdown |
 | `native_N` | Application or runtime failure frame |
-| `signal_overflow` | Paused signal listener exceeded its backlog |
+| `signal_overflow` | A signal listener exceeded its queued-message or byte budget |
 
 The message text is diagnostic detail, not a stable error identifier. A
-one-way signal has no call future carrying its handler's result. Observe
-`session.signalErrors` or the generated endpoint's `errors` stream for those
-failures. Diagnostic delivery is best effort when output capacity is full.
+one-way signal has no call future carrying its handler's result.
+
+## Observe signal failures
+
+Observe `session.signalErrors` or the generated endpoint's `errors` stream
+for native signal failures. Endpoint `errors` also reports decoding failures.
+These streams deliver error objects as data events; subscribe with `listen`.
+Handle errors on the endpoint's message `stream` as well: subscriber overflow
+is delivered there as a stream error. Native failure-frame delivery is best
+effort when output capacity is full.
+
+## Logs and runtime counters
 
 Pass `onDiagnostic` when creating a session to observe lifecycle and
 backpressure events. `session.stats` reports queue and transport counters.
@@ -31,6 +42,7 @@ backpressure events. `session.stats` reports queue and transport counters.
 logger and registers its own cleanup:
 
 ```dart
+await initializeZig();
 final session = createSession(
   onDiagnostic: (event) => print('${event.kind}: route ${event.route}'),
 );

@@ -9,6 +9,8 @@ A stream is a call that produces several items. Use it for incremental
 results, such as search matches or image tiles, when Dart should control how
 quickly Zig produces the next item.
 
+## Define an iterator
+
 The Zig handler returns an iterator type with `pub const Item` and `next()`:
 
 ```zig
@@ -31,9 +33,12 @@ pub const Squares = struct {
 };
 ```
 
+## Consume the stream
+
 The generator recognizes this return type and produces a Dart `Stream<int>`:
 
 ```dart
+await initializeZig();
 final session = createSession();
 try {
   final squares = ZigApi(session).squares(5);
@@ -45,6 +50,8 @@ try {
 }
 ```
 
+## Pacing, cancellation, and cleanup
+
 Listening starts the native operation. The runtime grants one production
 credit at a time. Pausing the Dart subscription withholds further credits;
 one item may already be in flight. Cancelling the subscription invalidates
@@ -52,8 +59,17 @@ the native task. The iterator may implement `deinit` to release its resources.
 Continuation-based producers release their native worker while waiting for
 another credit.
 
-A timeout covers the whole stream, including time spent paused. Stream
-requests cannot retain borrowed slices from their input frame; copy data into
-owned Zig storage if the iterator needs it after dispatch returns. For a
-standalone runnable version, see the
+A timeout covers the whole stream, including time spent paused. Keep each
+`next()` call short, especially on Web where it shares the host event loop.
+
+## Request lifetime
+
+The typed handler dispatcher rejects stream requests containing
+`dz.protocol.Text` or `[]const u8`, including nested fields. These decode to
+borrowed slices whose input frame is released after dispatch. Copying inside
+the handler does not bypass this compile-time restriction. Use supported
+scalar request fields, or an explicit protocol dispatcher that copies input
+into owned Zig storage before retaining it.
+
+For a standalone runnable version, see the
 [streams example](https://github.com/kingwill101/dart_zig/tree/main/example/streams_example).

@@ -1,6 +1,6 @@
 ---
 title: Buffers and ownership
-description: Dispose signal packs and native buffers at the right time.
+description: Distinguish Dart-owned values, borrowed bytes, and native resource lifetimes.
 ---
 
 # Buffers and ownership
@@ -37,7 +37,10 @@ shows this pattern.
 
 ## Binary attachments
 
-An event can send typed metadata and separate bytes:
+The [attachments example](https://github.com/kingwill101/dart_zig/tree/main/example/attachments_example)
+declares an `attachments` endpoint with a text `label` and byte `tag`.
+It sends typed metadata and separate bytes (`Uint8List` comes from
+`dart:typed_data`):
 
 ```dart
 await api.attachments.send(
@@ -52,12 +55,24 @@ pack is alive. To keep the data independently of the native lease, call
 
 ## Owned native results
 
-The lower-level `session.callBuffer` path returns a `NativeBuffer` and avoids
-the final native-to-Dart result copy. Its `view` borrows storage: do not read
+The lower-level `session.callBuffer(...).result` future returns a `NativeBuffer`
+and avoids the final native-to-Dart result copy. Its `view` borrows storage: do not read
 that view after disposing the buffer. `copy()` creates Dart-owned bytes.
 Input submission and native response construction can still copy, so this is
 not an end-to-end zero-copy protocol. On Web, output is copied out of Wasm
 memory before Dart receives it.
+
+A returned buffer keeps its ownership after the session closes. Dispose it,
+and every retained slice or lease, explicitly; session shutdown does not release
+those caller-owned leases.
+
+## Native handles
+
+Native object handles belong to the session that created them. Release the
+object through its application wrapper when it is no longer needed. Session
+shutdown destroys remaining native objects; handles from an old session are
+not valid in a replacement session. Handles and owned buffers have different
+lifetimes, even when both refer to native storage.
 
 For complete runnable code, see the
 [attachments example](https://github.com/kingwill101/dart_zig/tree/main/example/attachments_example)

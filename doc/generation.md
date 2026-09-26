@@ -86,7 +86,7 @@ asset ID to the name registered by its build hook.
 `pubspec.yaml` and the reusable Zig package in `zig/build.zig.zon`. The Zig
 package is imported by the application's `zig/build.zig`; a Dart build hook
 compiles the application asset. After adding the Dart dependencies shown in
-the [README](../README.md#getting-started), run these commands from your
+the [README](../README.md#quick-start), run these commands from your
 package root to create the native files and bindings:
 
 ```sh

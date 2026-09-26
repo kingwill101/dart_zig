@@ -1,21 +1,40 @@
 # dart_zig
 
-Dart runtime primitives and Zig modules for calls, signals, streams, callbacks,
-owned buffers, and cleanup. The core package has no Flutter dependency or
-application protocol. Native Dart applications use a build hook to compile their
-own Zig asset; Web applications use the Wasm transport.
+Use Zig from Dart and Flutter through generated, typed APIs. Write your handlers
+in Zig, generate their Dart methods and codecs, and call them from a session
+that manages communication and cleanup.
 
-## Getting started
+`dart_zig` supports asynchronous calls, streams, signals, callbacks, and native
+resources. Your application owns its Zig source: a Dart build hook compiles it
+into a native library, while Web applications use a WebAssembly module. The core
+package has no Flutter dependency and does not prescribe an application protocol.
 
-Start in an existing Dart package, or create one with `dart create -t console my_app`.
-Use Zig 0.15.2 or 0.16.0. A direct Zig export needs only
-`native_toolchain_zig`: generate its FFI binding and call it like a Dart
-function. It does not need a `dart_zig` session or a binary codec. The
-[direct FFI setup](doc/generation.md#direct-ffi) gives the files and commands
-for a new or existing package.
+## What you can build
 
-Add `dart_zig` when the application needs native workers, calls with
-cancellation, streams, signals, callbacks, or Web/Wasm. From the package root:
+- **Request/response APIs** with typed results and cancellation.
+- **Continuous data flows** with streams that follow the listener's pace,
+  signals for notifications, and shared state updates.
+- **Work that crosses both ways** with callbacks from Zig into Dart.
+- **Resource-owning integrations** with binary attachments, native handles,
+  buffers, and session cleanup.
+
+For a short synchronous native function, direct FFI may be all you need.
+That path uses `native_toolchain_zig` without a `dart_zig` session or binary
+codec; see the [direct FFI setup](doc/generation.md#direct-ffi).
+Use the session-based setup below for workers, asynchronous communication,
+resource management, or Web/Wasm.
+
+## Quick start
+
+### 1. Set up your package
+
+Start in an existing Dart package, or create one with
+`dart create -t console my_app`. You need Dart 3.13 or later and Zig 0.15.2 or
+0.16.0 available on your path.
+
+The package is under active development and is not published to pub.dev.
+The setup below uses a local checkout and the same `native_toolchain_zig` fork
+as this repository.
 
 1. Add `dart_zig`, `ffi`, `hooks`, `logging`, and `native_toolchain_zig` to
    `pubspec.yaml`. Until `dart_zig` is published, use a local checkout:
@@ -46,7 +65,7 @@ cancellation, streams, signals, callbacks, or Web/Wasm. From the package root:
    It then generates the Dart bindings. It stops if one of those files already
    exists, so it does not replace an existing Zig build or build hook.
 
-### Write the Zig handler
+### 2. Define your Zig API
 
 `init` creates `zig/src/handlers.zig` with this working handler. Edit that file
 to define the operations your application needs:
@@ -74,7 +93,7 @@ After changing a handler signature, regenerate from the package root:
 dart run dart_zig:dart_zig generate
 ```
 
-### Call it from Dart
+### 3. Call it from Dart
 
 Create `bin/main.dart` in a console package (or call this code from your
 application's Dart code). Replace `my_app` with the name in your `pubspec.yaml`:
@@ -106,18 +125,10 @@ directory, it also builds `web/<package_name>.wasm` and selects the Web session
 factory automatically. For an existing Zig project, integrate the shared
 module and build hook as described in [session setup](doc/generation.md#session-setup).
 
-## Run the examples
+## Examples
 
-Each example is a standalone Dart package with its own `zig/` and `hook/`:
-
-```sh
-cd example/minimal_example
-dart pub get
-dart run bin/main.dart
-```
-
-The [minimal example](example/minimal_example/README.md) shows one generated
-direct FFI call. For a session-based application:
+Start with the [calls example](example/calls_example/README.md) for the smallest
+session-based project:
 
 ```sh
 cd example/calls_example
@@ -125,26 +136,17 @@ dart pub get
 dart run bin/main.dart
 ```
 
-The [calls example](example/calls_example/README.md) is the smallest
-session-based project. The [runtime feature example](example/runtime_features_example/README.md)
-combines calls, streams, signals, callbacks, native objects, Web, and cleanup
-as an advanced integration case. The [native request example](example/native_requests_example/README.md)
-demonstrates native-to-Dart request/reply using `dart_api_dl`:
+Each example is an independent package with its own Zig source and build hook.
+CLI examples use `bin/main.dart`; Flutter examples use `lib/main.dart` and run
+with `flutter run`.
 
-```sh
-cd example/native_requests_example
-dart pub get
-dart run bin/main.dart
-```
+| Start here | Example |
+| --- | --- |
+| One synchronous call, using direct FFI | [minimal_example](example/minimal_example/README.md) |
+| Calls, streams, signals, callbacks, native objects, Web, and cleanup together | [runtime_features_example](example/runtime_features_example/README.md) |
+| Native-to-Dart request/reply through `dart_api_dl` | [native_requests_example](example/native_requests_example/README.md) |
 
-Run `./tool/verify.sh` from the repository root for the current validation
-commands. Start with [the guide pages](docs/index.mdx) for setup, communication,
-ownership, and platform usage. The [technical notes](doc/index.md) contain
-deeper runtime and implementation details.
-
-Focused, standalone projects each have their own `pubspec.yaml`, `zig/`, and
-build hook. CLI examples use `bin/main.dart`; Flutter examples use
-`lib/main.dart`:
+Explore a specific feature:
 
 | Feature | Example |
 | --- | --- |
@@ -163,12 +165,31 @@ build hook. CLI examples use `bin/main.dart`; Flutter examples use
 | Continuous Flutter stream | [particle_stream_flutter_example](example/particle_stream_flutter_example/README.md) |
 | Typed signal in Flutter | [typed_signal_flutter_example](example/typed_signal_flutter_example/README.md) |
 
-The calls, streams, diagnostics, lifecycle, transport, isolates, Web, signals,
-state, attachments, and Flutter examples derive dispatch and typed codecs from
-one Zig handler module. Callbacks and native ownership use Zig route declarations to
-generate typed codecs. Native requests show the lower-level bridge API. Each compiles the shared
-Zig export source and uses `createSession()` from its generated Dart binding.
-No runtime export file is copied into an application.
+## Documentation
 
-The Dart dependency on `native_toolchain_zig` points to
-[the `cimport-generator-wip` fork](https://github.com/kingwill101/native_toolchain_zig.dart/tree/cimport-generator-wip).
+- [Why dart_zig?](docs/why-dart-zig.mdx): direct bindings versus sessions, runtime costs, and Dart C API integration.
+- [Getting started](docs/getting-started.mdx): a guided setup and first call.
+- [Project layout](docs/project-layout.mdx): Zig source, build hooks, and generated files.
+- [Handlers and events](docs/handlers-and-events.mdx) and
+  [message types](docs/message-types.mdx): define your typed API.
+- [Buffers and ownership](docs/buffers-and-ownership.mdx) and
+  [cleanup and restart](docs/cleanup-and-restart.mdx): manage resources and session lifetimes.
+- [Dart and Flutter](docs/dart-and-flutter.mdx),
+  [Web and Wasm](docs/web-and-wasm.mdx), and
+  [isolates](docs/isolates.mdx): integrate with your application.
+- [Guide index](docs/index.mdx): all user guides.
+- [Technical notes](doc/index.md): runtime internals and lower-level integration.
+
+## Development
+
+From the repository root, run:
+
+```sh
+sh tool/verify.sh
+```
+
+This runs Dart analysis and tests, Zig builds and runtime tests, standalone
+Dart examples, and Web/Wasm runners. Flutter demos are separate from this script.
+
+The build tooling currently uses the
+[`cimport-generator-wip` fork of native_toolchain_zig](https://github.com/kingwill101/native_toolchain_zig.dart/tree/cimport-generator-wip).

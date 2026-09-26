@@ -5,10 +5,20 @@ description: Add dart_zig to a new or existing Dart package.
 
 # Getting started
 
-Use Zig 0.15.2 or 0.16.0. These steps work in an existing Dart package or a
-new package created with `dart create`.
+This walkthrough creates a typed Zig `add` handler and calls it from Dart.
+You need Dart 3.13 or later and Zig 0.15.2 or 0.16.0 on your path.
 
-## Add dependencies
+Start in an existing Dart package, or create a console application:
+
+```sh
+dart create -t console my_app
+cd my_app
+```
+
+For Flutter, start in your application's package root. If you only need a
+short synchronous native function, see [direct FFI](/direct-ffi).
+
+## 1. Add dependencies
 
 Until `dart_zig` is published, point the Dart dependency at a local checkout:
 
@@ -25,6 +35,8 @@ dependencies:
       ref: cimport-generator-wip
 ```
 
+## 2. Initialize the Zig project
+
 From your package root, run:
 
 ```sh
@@ -35,35 +47,71 @@ dart run dart_zig:dart_zig init
 `init` creates `zig/build.zig.zon`, `zig/build.zig`, `zig/src/handlers.zig`, and
 `hook/build.dart`, then generates Dart bindings for your package. It stops
 instead of replacing any of those files if they already exist. For an existing
-Zig project, integrate the build hook and root module yourself, then run
-`dart run dart_zig:dart_zig generate`.
+Zig project, follow the
+[manual session setup](https://github.com/kingwill101/dart_zig/blob/main/doc/generation.md#session-setup)
+and then run `dart run dart_zig:dart_zig generate`. The generated Zig dependency
+points to the same local checkout as your Dart dependency.
 
 If the package has a `web/` directory, generation also builds
 `web/<package_name>.wasm` and writes a conditional session factory. A Flutter
 project needs Flutter's Web platform scaffold before `flutter run -d chrome`.
 
-## Call a Zig handler
+## 3. Call your first handler
 
-The initialized `zig/src/handlers.zig` contains a public `add` function. The
-generator produces `ZigApi.add` and a `createSession()` factory:
+The initialized `zig/src/handlers.zig` contains this handler:
+
+```zig
+pub const AddRequest = struct {
+    a: i64,
+    b: i64,
+};
+
+pub fn add(request: AddRequest) !i64 {
+    const sum = @addWithOverflow(request.a, request.b);
+    if (sum[1] != 0) return error.Overflow;
+    return sum[0];
+}
+```
+
+The generator turns `AddRequest` into a Dart record and `add` into an
+asynchronous method on `ZigApi`. Create `bin/main.dart` with the code below,
+replacing `my_app` with the name in your `pubspec.yaml`:
 
 ```dart
 import 'package:my_app/src/generated/generated.dart';
 
-Future<int> add(int a, int b) async {
+Future<void> main() async {
   await initializeZig();
   final session = createSession();
   try {
-    return await ZigApi(session).add((a: a, b: b));
+    final result = await ZigApi(session).add((a: 20, b: 22));
+    print(result); // 42
   } finally {
     await session.close();
   }
 }
 ```
 
-Keep the session open for repeated calls. Regenerate after changing public Zig
-handlers or event declarations. Read [handlers and events](/handlers-and-events)
-for native-to-Dart messages.
+Run it from your package root:
 
-For a simple synchronous export that does not need sessions or signals, use
-`native_toolchain_zig` directly to generate an FFI binding.
+```sh
+dart run bin/main.dart
+```
+
+The build hook compiles your Zig library for the native target. `initializeZig()`
+is a no-op on the Dart VM; on Web it loads the Wasm module before a session opens.
+Keep one session open for repeated calls and close it when its owner is done.
+
+## 4. Change and regenerate your API
+
+Edit `zig/src/handlers.zig`, then regenerate after changing a public handler
+signature or event declaration:
+
+```sh
+dart run dart_zig:dart_zig generate
+```
+
+Rebuild or rerun the application so its native asset matches the generated API.
+Use [handlers and events](/handlers-and-events) to add operations and messages,
+[project layout](/project-layout) to understand the generated files, and
+[Web and Wasm](/web-and-wasm) for Web asset setup.
