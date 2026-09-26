@@ -1,0 +1,9 @@
+.dart_tool/
+pubspec.lock
+build/
+zig/.zig-cache/
+zig/zig-out/
+zig/.zigchain_probe_*.zig
+zig/.zigchain_probe_*.zig.zon
+zig/.zigchain_cimport.zig
+zig/.zigchain_cimport_source.c
