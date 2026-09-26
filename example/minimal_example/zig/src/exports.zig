@@ -1,0 +1,4 @@
+/// A direct FFI function with no session or wire format.
+export fn add(a: i64, b: i64) i64 {
+    return a + b;
+}

@@ -1,0 +1,10 @@
+.{
+    .name = .streams_example,
+    .fingerprint = 0x5a83c1183d4a6460,
+    .version = "0.1.0",
+    .minimum_zig_version = "0.15.2",
+    .dependencies = .{
+        .dart_zig = .{ .path = "../../../zig" },
+    },
+    .paths = .{ "build.zig", "build.zig.zon", "src" },
+}
