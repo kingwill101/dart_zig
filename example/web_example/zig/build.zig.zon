@@ -1,0 +1,10 @@
+.{
+    .name = .web_example,
+    .fingerprint = 0x864335011020648d,
+    .version = "0.1.0",
+    .minimum_zig_version = "0.15.2",
+    .dependencies = .{
+        .dart_zig = .{ .path = "../../../zig" },
+    },
+    .paths = .{ "build.zig", "build_web.zig", "build.zig.zon", "src" },
+}
