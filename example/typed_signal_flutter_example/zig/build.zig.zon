@@ -1,0 +1,10 @@
+.{
+    .name = .typed_signal_flutter_example,
+    .fingerprint = 0x5170aa16a21a59e9,
+    .version = "0.1.0",
+    .minimum_zig_version = "0.15.2",
+    .dependencies = .{
+        .dart_zig = .{ .path = "../../../zig" },
+    },
+    .paths = .{ "build.zig", "build.zig.zon", "src" },
+}
