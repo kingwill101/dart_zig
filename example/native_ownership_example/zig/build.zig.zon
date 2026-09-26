@@ -1,0 +1,10 @@
+.{
+    .name = .native_ownership_example,
+    .fingerprint = 0x66e0bbb5cbc55e9d,
+    .version = "0.1.0",
+    .minimum_zig_version = "0.15.2",
+    .dependencies = .{
+        .dart_zig = .{ .path = "../../../zig" },
+    },
+    .paths = .{ "build.zig", "build.zig.zon", "src" },
+}

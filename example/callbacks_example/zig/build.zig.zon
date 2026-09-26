@@ -1,0 +1,10 @@
+.{
+    .name = .callbacks_example,
+    .fingerprint = 0x549b09759966609b,
+    .version = "0.1.0",
+    .minimum_zig_version = "0.15.2",
+    .dependencies = .{
+        .dart_zig = .{ .path = "../../../zig" },
+    },
+    .paths = .{ "build.zig", "build.zig.zon", "src" },
+}
