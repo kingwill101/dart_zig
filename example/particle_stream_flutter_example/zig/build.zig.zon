@@ -1,0 +1,10 @@
+.{
+    .name = .particle_stream_flutter_example,
+    .fingerprint = 0x70f064c9f946263a,
+    .version = "0.1.0",
+    .minimum_zig_version = "0.15.2",
+    .dependencies = .{
+        .dart_zig = .{ .path = "../../../zig" },
+    },
+    .paths = .{ "build.zig", "build.zig.zon", "src" },
+}
