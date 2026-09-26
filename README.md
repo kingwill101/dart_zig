@@ -46,18 +46,65 @@ cancellation, streams, signals, callbacks, or Web/Wasm. From the package root:
    It then generates the Dart bindings. It stops if one of those files already
    exists, so it does not replace an existing Zig build or build hook.
 
-The generator writes FFI declarations, an asset-specific `createSession()`
-factory, and typed endpoints from public functions in `zig/src/handlers.zig`.
-The initialized handler accepts two numbers:
+### Write the Zig handler
 
-```dart
-final sum = await ZigApi(session).add((a: 20, b: 22));
+`init` creates `zig/src/handlers.zig` with this working handler. Edit that file
+to define the operations your application needs:
+
+```zig
+pub const AddRequest = struct {
+    a: i64,
+    b: i64,
+};
+
+pub fn add(request: AddRequest) !i64 {
+    const sum = @addWithOverflow(request.a, request.b);
+    if (sum[1] != 0) return error.Overflow;
+    return sum[0];
+}
 ```
 
-Import `ZigApi` from your generated `lib/src/generated/api.g.dart`.
-The [session setup](doc/generation.md#session-setup) shows the Zig handler,
-session cleanup, and integration with an existing build. Add public handler
-functions in `zig/src/handlers.zig`, then rerun `generate`.
+Public handler functions become typed Dart methods. The request struct becomes
+a Dart record, so the generated `add` method accepts `(a: int, b: int)` and
+returns an `int`.
+The generator creates the route and codecs; you do not write those by hand.
+After changing a handler signature, regenerate from the package root:
+
+```sh
+dart run dart_zig:dart_zig generate
+```
+
+### Call it from Dart
+
+Create `bin/main.dart` in a console package (or call this code from your
+application's Dart code). Replace `my_app` with the name in your `pubspec.yaml`:
+
+```dart
+import 'package:my_app/src/generated/generated.dart';
+
+Future<void> main() async {
+  await initializeZig();
+  final session = createSession();
+  try {
+    final api = ZigApi(session);
+    final result = await api.add((a: 20, b: 22));
+    print(result); // 42
+  } finally {
+    await session.close();
+  }
+}
+```
+
+Run it with `dart run bin/main.dart`. The build hook compiles the Zig library
+for the native target. `initializeZig()` is a no-op on the Dart VM; on Web it
+loads the generated Wasm module before `createSession()`. Keep a session open
+across repeated calls and close it when the application is done.
+
+The generator writes FFI declarations, the typed `ZigApi`, and the stable
+`lib/src/generated/generated.dart` import. If the package has a `web/`
+directory, it also builds `web/<package_name>.wasm` and selects the Web session
+factory automatically. For an existing Zig project, integrate the shared
+module and build hook as described in [session setup](doc/generation.md#session-setup).
 
 ## Run the examples
 
@@ -91,7 +138,9 @@ dart run bin/main.dart
 ```
 
 Run `./tool/verify.sh` from the repository root for the current validation
-commands. See [the documentation](doc/index.md) for the API and platform guides.
+commands. Start with [the guide pages](docs/index.mdx) for setup, communication,
+ownership, and platform usage. The [technical notes](doc/index.md) contain
+deeper runtime and implementation details.
 
 Focused, standalone projects each have their own `pubspec.yaml`, `zig/`, and
 build hook. CLI examples use `bin/main.dart`; Flutter examples use
@@ -112,6 +161,7 @@ build hook. CLI examples use `bin/main.dart`; Flutter examples use
 | Web/Wasm | [web_example](example/web_example/README.md) |
 | Flutter native compute | [fractal_flutter_example](example/fractal_flutter_example/README.md) |
 | Continuous Flutter stream | [particle_stream_flutter_example](example/particle_stream_flutter_example/README.md) |
+| Typed signal in Flutter | [typed_signal_flutter_example](example/typed_signal_flutter_example/README.md) |
 
 The calls, streams, diagnostics, lifecycle, transport, isolates, Web, signals,
 state, attachments, and Flutter examples derive dispatch and typed codecs from
